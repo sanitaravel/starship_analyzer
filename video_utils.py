@@ -8,19 +8,37 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from extract_data import extract_data
 import os
 
-def extract_random_frame(video_path: str) -> Tuple[np.ndarray, int]:
+
+def extract_random_frame(video_path: str, start_time: Optional[int] = None, end_time: Optional[int] = None) -> Tuple[np.ndarray, int]:
     """
-    Extract a random frame from a video.
+    Extract a random frame from a video within a specified timeframe.
 
     Args:
         video_path (str): The path to the video file.
+        start_time (int, optional): The start time in seconds for the timeframe.
+        end_time (int, optional): The end time in seconds for the timeframe.
 
     Returns:
         tuple: A tuple containing the extracted frame and the frame number.
     """
     cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    random_frame_number = random.randint(0, frame_count - 1)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    
+    if start_time is not None:
+        start_frame = int(start_time * fps)
+    else:
+        start_frame = 0
+    
+    if end_time is not None:
+        end_frame = int(end_time * fps)
+    else:
+        end_frame = frame_count - 1
+    
+    if start_frame >= end_frame:
+        raise ValueError("Start time must be less than end time")
+    
+    random_frame_number = random.randint(start_frame, end_frame)
     cap.set(cv2.CAP_PROP_POS_FRAMES, random_frame_number)
     ret, frame = cap.read()
     cap.release()
@@ -29,7 +47,8 @@ def extract_random_frame(video_path: str) -> Tuple[np.ndarray, int]:
     else:
         raise ValueError("Failed to extract frame from video")
 
-def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debug: bool) -> Dict:
+
+def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debug: bool, zero_time_met: bool) -> Dict:
     """
     Process a single frame and extract data.
 
@@ -38,11 +57,12 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
         frame (numpy.ndarray): The frame to process.
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
+        zero_time_met (bool): Whether a frame with time 0:0:0 has been met.
 
     Returns:
         dict: A dictionary containing the extracted data for the frame.
     """
-    superheavy_data, starship_data, time_data = extract_data(frame, display_rois=display_rois, debug=debug)
+    superheavy_data, starship_data, time_data = extract_data(frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met)
     frame_result = {
         "frame_number": frame_number,
         "superheavy": superheavy_data,
@@ -51,7 +71,8 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
     }
     return frame_result
 
-def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: bool) -> List[Dict]:
+
+def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: bool, zero_time_met: bool) -> List[Dict]:
     """
     Process a batch of frames and extract data.
 
@@ -60,6 +81,7 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
         video_path (str): The path to the video file.
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
+        zero_time_met (bool): Whether a frame with time 0:0:0 has been met.
 
     Returns:
         list: A list of dictionaries containing the extracted data for each frame.
@@ -70,10 +92,13 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
         ret, frame = cap.read()
         if ret:
-            frame_result = process_frame(frame_number, frame, display_rois, debug)
+            frame_result = process_frame(frame_number, frame, display_rois, debug, zero_time_met)
             results.append(frame_result)
+            if frame_result["time"] and frame_result["time"]['hours'] == 0 and frame_result["time"]['minutes'] == 0 and frame_result["time"]['seconds'] == 0:
+                zero_time_met = True
     cap.release()
     return results
+
 
 def iterate_through_frames(video_path: str, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 100) -> None:
     """
@@ -91,6 +116,7 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
     fps = cap.get(cv2.CAP_PROP_FPS)
     results: List[Dict] = []
     zero_time_frame: Optional[int] = None
+    zero_time_met = False
     
     if max_frames is not None:
         frame_count = min(frame_count, max_frames)
@@ -102,7 +128,7 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
     print(f"Using {num_cores} CPU cores for processing.")
     
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
-        futures = [executor.submit(process_batch, batch, video_path, display_rois, debug) for batch in batches]
+        futures = [executor.submit(process_batch, batch, video_path, display_rois, debug, zero_time_met) for batch in batches]
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Processing batches"):
             batch_results = future.result()
@@ -110,6 +136,7 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
             for frame_result in batch_results:
                 if frame_result["time"] and frame_result["time"]['hours'] == 0 and frame_result["time"]['minutes'] == 0 and frame_result["time"]['seconds'] == 0 and not zero_time_frame:
                     zero_time_frame = frame_result["frame_number"]
+                    zero_time_met = True
                 
                 if debug:
                     print(
@@ -136,3 +163,4 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
     
     with open("results.json", "w") as f:
         json.dump(results, f, indent=4)
+        print("JSON dumped successfully.")

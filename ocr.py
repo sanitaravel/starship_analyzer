@@ -20,8 +20,27 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     Returns:
         dict: A dictionary containing the extracted values.
     """
-    # Convert the ROI to grayscale
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    # gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    
+    # Remove antialiasing by applying a bilateral filter
+    roi = cv2.bilateralFilter(roi, d=9, sigmaColor=75, sigmaSpace=75)
+    
+    if display_transformed:
+        display_image(roi, "Antialiased ROI")
+    
+    # Increase sharpness of the ROI
+    kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
+    roi = cv2.filter2D(roi, -1, kernel)
+    
+    if display_transformed:
+        display_image(roi, "Sharpened ROI")
+    
+    # Mask everything out besides the color FAF8FA and its closest ones
+    lower_bound = np.array([230, 230, 230])
+    upper_bound = np.array([255, 255, 255])
+    mask = cv2.inRange(roi, lower_bound, upper_bound)
+    masked_roi = cv2.bitwise_and(roi, roi, mask=mask)
+    gray = cv2.cvtColor(masked_roi, cv2.COLOR_BGR2GRAY)
     
     # Display the transformed image if requested
     if display_transformed:

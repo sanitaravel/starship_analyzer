@@ -115,7 +115,7 @@ def create_height_vs_speed_plot(df: pd.DataFrame, x: str, y: str, title: str, fi
     plt.savefig(f"plots/{filename}")
     plt.show()
 
-def create_comparison_plot(df: pd.DataFrame, x: str, y: str, y_smoothed: str, title: str, filename: str, label: str) -> None:
+def create_comparison_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: str, label: str) -> None:
     """
     Create and save a comparison scatter plot for the original and smoothed data.
 
@@ -133,15 +133,14 @@ def create_comparison_plot(df: pd.DataFrame, x: str, y: str, y_smoothed: str, ti
     
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=x, y=y, data=df, label=f"Original {label}")
-    sns.scatterplot(x=x, y=y_smoothed, data=df, label=f"Smoothed {label}")
-    plt.xlabel('Real Time (s)')
+    plt.xlabel(x.capitalize())
     plt.ylabel(y.capitalize())
     plt.title(title)
     plt.legend()
     plt.savefig(f"plots/{filename}")
     plt.show()
 
-def analyze_results(json_path: str) -> None:
+def analyze_results(json_path: str, plot_relative_to_frame: bool = False) -> None:
     try:
         with open(json_path, "r") as f:
             data = json.load(f)
@@ -173,14 +172,15 @@ def analyze_results(json_path: str) -> None:
         print(df)
         
         # Create comparison scatter plots
-        create_comparison_plot(df, 'real_time', 'superheavy_speed', 'superheavy_speed_smoothed', 'Speed of Superheavy Relative to Real Time', 'sh_speed_vs_time_comparison.png', 'SH Speed')
-        create_comparison_plot(df, 'real_time', 'starship_speed', 'starship_speed_smoothed', 'Speed of Starship Relative to Real Time', 'ss_speed_vs_time_comparison.png', 'SS Speed')
-        create_comparison_plot(df, 'real_time', 'superheavy_altitude', 'superheavy_altitude_smoothed', 'Altitude of Superheavy Relative to Real Time', 'sh_altitude_vs_time_comparison.png', 'SH Altitude')
-        create_comparison_plot(df, 'real_time', 'starship_altitude', 'starship_altitude_smoothed', 'Altitude of Starship Relative to Real Time', 'ss_altitude_vs_time_comparison.png', 'SS Altitude')
+        x_axis = 'frame_number' if plot_relative_to_frame else 'real_time'
+        create_comparison_plot(df, x_axis, 'superheavy_speed', 'Speed of Superheavy Relative to Time', 'sh_speed_vs_time_comparison.png', 'SH Speed')
+        create_comparison_plot(df, x_axis, 'starship_speed', 'Speed of Starship Relative to Time', 'ss_speed_vs_time_comparison.png', 'SS Speed')
+        create_comparison_plot(df, x_axis, 'superheavy_altitude', 'Altitude of Superheavy Relative to Time', 'sh_altitude_vs_time_comparison.png', 'SH Altitude')
+        create_comparison_plot(df, x_axis, 'starship_altitude', 'Altitude of Starship Relative to Time', 'ss_altitude_vs_time_comparison.png', 'SS Altitude')
         
         # Create height vs speed comparison plots
-        create_comparison_plot(df, 'superheavy_speed', 'superheavy_altitude', 'superheavy_altitude_smoothed', 'Altitude of Superheavy Relative to Speed', 'sh_altitude_vs_speed_comparison.png', 'SH Altitude vs Speed')
-        create_comparison_plot(df, 'starship_speed', 'starship_altitude', 'starship_altitude_smoothed', 'Altitude of Starship Relative to Speed', 'ss_altitude_vs_speed_comparison.png', 'SS Altitude vs Speed')
+        create_comparison_plot(df, 'superheavy_speed', 'superheavy_altitude', 'Altitude of Superheavy Relative to Speed', 'sh_altitude_vs_speed_comparison.png', 'SH Altitude vs Speed')
+        create_comparison_plot(df, 'starship_speed', 'starship_altitude', 'Altitude of Starship Relative to Speed', 'ss_altitude_vs_speed_comparison.png', 'SS Altitude vs Speed')
         
     except json.JSONDecodeError:
         print("Invalid JSON format.")
