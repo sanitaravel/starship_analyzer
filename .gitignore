@@ -125,6 +125,7 @@ dmypy.json
 .vscode/
 
 # Temporary files
+.tmp\
 *.tmp
 *.temp
 
@@ -141,5 +142,6 @@ dmypy.json
 *.webm
 *.zip
 
-# JSON results
-results.json
+# Folders to ignore (testing)
+/results
+/flight_recordings

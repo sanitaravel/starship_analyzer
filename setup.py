@@ -1,9 +1,7 @@
 import os
 import subprocess
 import sys
-from utils import log_runtime
 
-@log_runtime()
 def check_tesseract_installed() -> None:
     """
     Check if Tesseract OCR is installed.
@@ -17,21 +15,26 @@ def check_tesseract_installed() -> None:
     except subprocess.CalledProcessError:
         print("\033[91mTesseract is not installed. Please install it from https://github.com/tesseract-ocr/tesseract\033[0m")  # Red text
 
-@log_runtime()
 def create_virtualenv() -> None:
     """
     Create a virtual environment.
     """
-    subprocess.check_call([sys.executable, "-m", "venv", "venv"])
+    try:
+        subprocess.check_call([sys.executable, "-m", "venv", "venv"])
+        print("\033[92mVirtual environment has been created.\033[0m")  # Green text
+    except subprocess.CalledProcessError:
+        print("\033[91mVirtual environment wasn't created! Something went HORRIBLTY wrong.\033[0m")  # Red text
 
-@log_runtime()
 def install_dependencies() -> None:
     """
     Install the required dependencies.
     """
-    subprocess.check_call([os.path.join("venv", "Scripts", "pip"), "install", "-r", "requirements.txt"])
+    try:
+        subprocess.check_call([os.path.join("venv", "Scripts", "pip"), "install", "-r", "requirements.txt"])
+        print("\033[92mPackages were installed.\033[0m")  # Green text
+    except subprocess.CalledProcessError:
+        print("\033[91mVPackages weren't installed!. Something went HORRIBLTY wrong.\033[0m")  # Red text
 
-@log_runtime()
 def main() -> None:
     """
     Main function to set up the project.

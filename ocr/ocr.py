@@ -1,11 +1,13 @@
-import cv2
-import numpy as np
-import pytesseract
+import os
 import re
+import cv2
+import pytesseract
+import numpy as np
 from typing import Dict, Tuple, Optional
 from utils import display_image
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Set the Tesseract executable path from the environment variable
+pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD")
 
 def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transformed: bool = False, debug: bool = False) -> Dict:
     """
