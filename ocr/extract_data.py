@@ -18,7 +18,8 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
     # Crop the image to exclude top and bottom black stripes
     height, width, _ = image.shape
     # Adjust this value to change the top cropping
-    bottom_crop = top_crop = height // 3 + 75
+    top_crop = int(height * (1 - 0.178423236515))
+    bottom_crop = 0
     cropped_image = image[top_crop: height -
                           bottom_crop, :]  # Apply the cropping
 
@@ -27,13 +28,24 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
         display_image(cropped_image, "Cropped Image")
 
     # Define ROIs for Superheavy, Starship, and Time
-    superheavy_roi = cropped_image[: cropped_image.shape[0] //
-                                   2, 20: cropped_image.shape[1] // 4 - 165]
-    starship_roi = cropped_image[: cropped_image.shape[0] // 2,
-                                 cropped_image.shape[1] // 4 * 3 + 75: cropped_image.shape[1] - 110]
-    time_roi = cropped_image[:, cropped_image.shape[1] // 2 -
-                             # Adjust as needed
-                             150: cropped_image.shape[1] // 2 + 150]
+    # height = 86, width = 858
+    height, width, _ = cropped_image.shape
+
+    superheavy_roi_left_edge = int(width * 0.179487179487)
+    superheavy_roi_right_edge = width - int(width * 0.765734265734)
+    superheavy_roi_bottom_edge = height - int(height * 0.5116279070)
+    superheavy_roi = cropped_image[:superheavy_roi_bottom_edge,
+                                   superheavy_roi_left_edge: superheavy_roi_right_edge]
+
+    starship_roi_left_edge = int(width * 0.7937062937)
+    starship_roi_right_edge = width - int(width * 0.1503496503)
+    starship_roi_bottom_edge = height - int(height * 0.5116279070)
+    starship_roi = cropped_image[: starship_roi_bottom_edge,
+                                 starship_roi_left_edge: starship_roi_right_edge]
+
+    time_roi_width = 120
+    time_roi_bottom_edge = height - int(height * 0.4516279070)
+    time_roi = cropped_image[:time_roi_bottom_edge, width // 2 - time_roi_width // 2:  width // 2 + time_roi_width // 2]
 
     # Display ROIs for debugging if requested
     if display_rois:

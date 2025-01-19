@@ -1,7 +1,7 @@
 import inquirer
 from plot import plot_flight_data, compare_multiple_launches
 from processing import process_image, process_video_frame, process_frame, iterate_through_frames
-
+import os
 
 def display_menu() -> None:
     """
@@ -16,9 +16,9 @@ def display_menu() -> None:
                 'Extract data from a random frame in a video',
                 'Extract data from a specified frame in a video',
                 'Extract data from a user-specified frame in a video',
+                'Run through whole video',
                 'Analyze flight data',
                 'Compare multiple launches',
-                'Run through whole video',
                 'Exit'
             ],
         ),
@@ -56,16 +56,34 @@ def display_menu() -> None:
 
     elif answers['action'] == 'Run through whole video':
         video_path = input("Enter the path to the video file: ")
-        display_rois = inquirer.confirm("Display ROIs?", default=False)
-        debug = inquirer.confirm("Enable debug prints?", default=False)
-        iterate_through_frames(video_path, display_rois, debug)
+        launch_number = int(input("Enter the launch number: "))
+        iterate_through_frames(video_path, launch_number)
 
     elif answers['action'] == 'Analyze flight data':
-        json_path = input("Enter the path to the JSON file containing the results: ")
+        launch_folders = [f for f in os.listdir('.\\results') if os.path.isdir(os.path.join('.\\results', f)) and f != 'compare_launches']
+        launch_folder = inquirer.List(
+            'launch_folder',
+            message="Select the launch folder",
+            choices=launch_folders,
+        )
+        selected_folder = inquirer.prompt([launch_folder])['launch_folder']
+        json_path = os.path.join('.\\results', selected_folder, 'results.json')
         plot_flight_data(json_path)
 
     elif answers['action'] == 'Compare multiple launches':
-        json_paths = input("Enter the paths to the JSON files containing the results, separated by commas: ").split(',')
+        launch_folders = [f for f in os.listdir('.\\results') if os.path.isdir(os.path.join('.\\results', f)) and f != 'compare_launches']
+        launch_selection = inquirer.Checkbox(
+            'launches',
+            message="Select the launches to compare (press space to select)",
+            choices=launch_folders,
+        )
+        selected_folders = inquirer.prompt([launch_selection])['launches']
+        
+        if len(selected_folders) < 2:
+            print("Please select at least two launches to compare.")
+            return
+        
+        json_paths = [os.path.join('.\\results', folder, 'results.json') for folder in selected_folders]
         timeframe = int(input("Enter the timeframe in seconds to plot (optional): ") or None)
         compare_multiple_launches(timeframe, *json_paths)
 

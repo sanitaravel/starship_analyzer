@@ -49,7 +49,11 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         display_image(gray, "Transformed ROI")
     
     # Use Tesseract to do OCR on the ROI
-    text = pytesseract.image_to_string(gray).lower()
+    try:
+        text = pytesseract.image_to_string(gray).lower()
+    except:
+        print("Program failed to read a text!")
+        return ""
     
     # Clean the OCR result
     cleaned_text = clean_ocr_result(text)

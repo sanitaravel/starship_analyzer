@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from ocr import extract_data
-from utils import extract_launch_number
 
 
 def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debug: bool, zero_time_met: bool) -> Dict:
@@ -63,7 +62,7 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
     return results
 
 
-def iterate_through_frames(video_path: str, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 100) -> None:
+def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 100) -> None:
     """
     Iterate through all frames in a video and extract data.
 
@@ -78,7 +77,7 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
     cap.release()
-    
+
     results: List[Dict] = []
     zero_time_frame: Optional[int] = None
     zero_time_met = False
@@ -133,10 +132,10 @@ def iterate_through_frames(video_path: str, display_rois: bool = False, debug: b
             else:
                 print(
                     f"\rFrame {frame_number} - Real Time: Not calculated", end='')
-                
-    folder_name = f"results\\launch_{'_'.join(extract_launch_number(video_path))}"
+
+    folder_name = f"results\\launch_{launch_number}"
     os.makedirs(folder_name, exist_ok=True)
 
-    with open(f"results\\launch_{'_'.join(extract_launch_number(video_path))}\\results.json", "w") as f:
+    with open(f"results\\launch_{launch_number}\\results.json", "w") as f:
         json.dump(results, f, indent=4)
         print("JSON dumped successfully.")

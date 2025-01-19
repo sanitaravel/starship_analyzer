@@ -59,8 +59,6 @@ The main script provides a step-by-step menu for processing images and videos, a
 python main.py
 ```
 
-> **IMPORTANT NOTE** Use only videos with the name launch_[number].*, otherwise program will fail. It's temporary, but I didn't have time to add a proper functionality.
-
 ### Menu Options
 
 1. **Process a single image:** Extract data from a specified image file.
