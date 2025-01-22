@@ -16,4 +16,4 @@ def display_image(image: np.ndarray, text: str) -> None:
     cv2.destroyAllWindows()
 
 def extract_launch_number(json_path: str) -> str:
-    return os.path.basename(os.path.dirname(json_path)).split('_')[1]
+    return os.path.basename(os.path.dirname(json_path)).split('_')[-1]

@@ -62,7 +62,7 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
     return results
 
 
-def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 100) -> None:
+def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 10) -> None:
     """
     Iterate through all frames in a video and extract data.
 
@@ -99,21 +99,11 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         for future in tqdm(as_completed(futures), total=len(futures), desc="Processing batches"):
             batch_results = future.result()
             results.extend(batch_results)
-            for frame_result in batch_results:
-                if frame_result["time"] and frame_result["time"]['hours'] == 0 and frame_result["time"]['minutes'] == 0 and frame_result["time"]['seconds'] == 0 and not zero_time_frame:
-                    zero_time_frame = frame_result["frame_number"]
-                    zero_time_met = True
-
-                if debug:
-                    print(
-                        f"\rFrame {frame_result['frame_number']} - Superheavy - Speed: {
-                            frame_result['superheavy']['speed']}, Altitude: {frame_result['superheavy']['altitude']} | "
-                        f"Starship - Speed: {frame_result['starship']['speed']}, Altitude: {
-                            frame_result['starship']['altitude']} | "
-                        f"Time: {frame_result['time']['sign']} {frame_result['time']['hours']:02}:{frame_result['time']['minutes']:02}:{
-                            frame_result['time']['seconds']:02}" if frame_result['time'] else "Time: Not found",
-                        end=''
-                    )
+            if not zero_time_met:
+                for frame_result in batch_results:
+                    if frame_result["time"] and frame_result["time"]['hours'] == 0 and frame_result["time"]['minutes'] == 0 and frame_result["time"]['seconds'] == 0:
+                        zero_time_frame = frame_result["frame_number"]
+                        zero_time_met = True
 
     # Calculate real time for each frame
     for frame_result in tqdm(results, desc="Calculating real time"):

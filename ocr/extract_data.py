@@ -43,7 +43,7 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
     starship_roi = cropped_image[: starship_roi_bottom_edge,
                                  starship_roi_left_edge: starship_roi_right_edge]
 
-    time_roi_width = 120
+    time_roi_width = int(width * 0.1142191142)
     time_roi_bottom_edge = height - int(height * 0.4516279070)
     time_roi = cropped_image[:time_roi_bottom_edge, width // 2 - time_roi_width // 2:  width // 2 + time_roi_width // 2]
 

@@ -84,7 +84,7 @@ def display_menu() -> None:
             return
         
         json_paths = [os.path.join('.\\results', folder, 'results.json') for folder in selected_folders]
-        timeframe = int(input("Enter the timeframe in seconds to plot (optional): ") or None)
+        timeframe = int(input("Enter the timeframe in seconds to plot (optional): ") or -1)
         compare_multiple_launches(timeframe, *json_paths)
 
     elif answers['action'] == 'Exit':

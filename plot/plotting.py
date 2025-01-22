@@ -64,7 +64,7 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
     os.makedirs(folder, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=x, y=y, data=df, label=f"Original {label}", s=5)
+    sns.scatterplot(x=x, y=y, data=df, label=f"{label}", s=5)
     plt.xlabel(x.capitalize())
     plt.ylabel(y.capitalize())
     plt.title(title)
@@ -133,6 +133,8 @@ def compare_multiple_launches(timeframe: int, *json_paths: str) -> None:
     """
     df_list = []
     labels = []
+    
+    timeframe = None if timeframe == -1 else timeframe
 
     for json_path in json_paths:
         df = load_and_clean_data(json_path)
@@ -142,7 +144,7 @@ def compare_multiple_launches(timeframe: int, *json_paths: str) -> None:
         if timeframe is not None:
             df = df[df['real_time'] <= timeframe]
         df_list.append(df)
-        labels.append(f'Launch {extract_launch_number(json_path)}')
+        labels.append(f'launch {extract_launch_number(json_path)}')
 
     # Sort labels and create folder name
     labels.sort()
