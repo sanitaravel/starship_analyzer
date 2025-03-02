@@ -85,4 +85,7 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str) -> pd.Series:
     Returns:
         pd.Series: The calculated acceleration.
     """
-    return df[speed_column].diff() / df['real_time'].diff()
+    # Convert speed from km/h to m/s
+    speed_m_per_s = df[speed_column] * (1000 / 3600)
+    acceleration = speed_m_per_s.diff() / df['real_time'].diff()
+    return acceleration
