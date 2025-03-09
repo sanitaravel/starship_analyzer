@@ -4,86 +4,79 @@ from utils import display_image
 from .ocr import extract_values_from_roi
 
 
-def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Preprocess the image to extract ROIs for Superheavy, Starship, and Time.
+    Preprocess the image to extract ROIs for Superheavy Speed, Superheavy Altitude, Starship Speed, Starship Altitude, and Time.
 
     Args:
         image (numpy.ndarray): The image to process.
         display_rois (bool): Whether to display the ROIs.
 
     Returns:
-        tuple: A tuple containing the ROIs for Superheavy, Starship, and Time.
+        tuple: A tuple containing the ROIs for Superheavy Speed, Superheavy Altitude, Starship Speed, Starship Altitude, and Time.
     """
-    # Crop the image to exclude top and bottom black stripes
-    height, width, _ = image.shape
-    # Adjust this value to change the top cropping
-    top_crop = int(height * (1 - 0.178423236515))
-    bottom_crop = 0
-    cropped_image = image[top_crop: height -
-                          bottom_crop, :]  # Apply the cropping
-
-    # Display the cropped image for debugging if requested
-    if display_rois:
-        display_image(cropped_image, "Cropped Image")
-
-    # Define ROIs for Superheavy, Starship, and Time
-    # height = 86, width = 858
-    height, width, _ = cropped_image.shape
-
-    superheavy_roi_left_edge = int(width * 0.179487179487)
-    superheavy_roi_right_edge = width - int(width * 0.765734265734)
-    superheavy_roi_bottom_edge = height - int(height * 0.5116279070)
-    superheavy_roi = cropped_image[:superheavy_roi_bottom_edge,
-                                   superheavy_roi_left_edge: superheavy_roi_right_edge]
-
-    starship_roi_left_edge = int(width * 0.7937062937)
-    starship_roi_right_edge = width - int(width * 0.1503496503)
-    starship_roi_bottom_edge = height - int(height * 0.5116279070)
-    starship_roi = cropped_image[: starship_roi_bottom_edge,
-                                 starship_roi_left_edge: starship_roi_right_edge]
-
-    time_roi_width = int(width * 0.1142191142)
-    time_roi_bottom_edge = height - int(height * 0.4516279070)
-    time_roi = cropped_image[:time_roi_bottom_edge, width // 2 - time_roi_width // 2:  width // 2 + time_roi_width // 2]
+    # Define ROIs based on the provided coordinates and dimensions
+    sh_speed_roi = image[913:913+25, 359:359+83]  # SH Speed: 359;913, size 83x25
+    sh_altitude_roi = image[948:948+25, 392:392+50]  # SH Altitude: 392;948, size 50x25
+    ss_speed_roi = image[913:913+25, 1539:1539+83]  # SS Speed: 1539;913, size 83x25
+    ss_altitude_roi = image[948:948+25, 1572:1572+50]  # SS Altitude: 1572;948, size 50x25
+    
+    # Define time ROI based on provided coordinates and dimensions
+    time_roi = image[940:940+44, 860:860+197]  # Time: 860;940, size 197x44
 
     # Display ROIs for debugging if requested
     if display_rois:
-        display_image(superheavy_roi, "Superheavy ROI")
-        display_image(starship_roi, "Starship ROI")
+        display_image(sh_speed_roi, "Superheavy Speed ROI")
+        display_image(sh_altitude_roi, "Superheavy Altitude ROI")
+        display_image(ss_speed_roi, "Starship Speed ROI")
+        display_image(ss_altitude_roi, "Starship Altitude ROI")
         display_image(time_roi, "Time ROI")
 
-    return superheavy_roi, starship_roi, time_roi
+    return sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi
 
 
-def extract_superheavy_data(superheavy_roi: np.ndarray, display_rois: bool, debug: bool) -> Dict:
+def extract_superheavy_data(sh_speed_roi: np.ndarray, sh_altitude_roi: np.ndarray, display_rois: bool, debug: bool) -> Dict:
     """
-    Extract data for Superheavy from the ROI.
+    Extract data for Superheavy from the ROIs.
 
     Args:
-        superheavy_roi (numpy.ndarray): The ROI for Superheavy.
+        sh_speed_roi (numpy.ndarray): The ROI for Superheavy speed.
+        sh_altitude_roi (numpy.ndarray): The ROI for Superheavy altitude.
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
 
     Returns:
         dict: A dictionary containing the extracted data for Superheavy.
     """
-    return extract_values_from_roi(superheavy_roi, mode="data", display_transformed=display_rois, debug=debug)
+    speed_data = extract_values_from_roi(sh_speed_roi, mode="speed", display_transformed=display_rois, debug=debug)
+    altitude_data = extract_values_from_roi(sh_altitude_roi, mode="altitude", display_transformed=display_rois, debug=debug)
+    
+    return {
+        "speed": speed_data.get("value"),
+        "altitude": altitude_data.get("value")
+    }
 
 
-def extract_starship_data(starship_roi: np.ndarray, display_rois: bool, debug: bool) -> Dict:
+def extract_starship_data(ss_speed_roi: np.ndarray, ss_altitude_roi: np.ndarray, display_rois: bool, debug: bool) -> Dict:
     """
-    Extract data for Starship from the ROI.
+    Extract data for Starship from the ROIs.
 
     Args:
-        starship_roi (numpy.ndarray): The ROI for Starship.
+        ss_speed_roi (numpy.ndarray): The ROI for Starship speed.
+        ss_altitude_roi (numpy.ndarray): The ROI for Starship altitude.
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
 
     Returns:
         dict: A dictionary containing the extracted data for Starship.
     """
-    return extract_values_from_roi(starship_roi, mode="data", display_transformed=display_rois, debug=debug)
+    speed_data = extract_values_from_roi(ss_speed_roi, mode="speed", display_transformed=display_rois, debug=debug)
+    altitude_data = extract_values_from_roi(ss_altitude_roi, mode="altitude", display_transformed=display_rois, debug=debug)
+    
+    return {
+        "speed": speed_data.get("value"),
+        "altitude": altitude_data.get("value")
+    }
 
 
 def extract_time_data(time_roi: np.ndarray, display_rois: bool, debug: bool, zero_time_met: bool) -> Dict:
@@ -118,15 +111,14 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
         tuple: A tuple containing the extracted data for Superheavy, Starship, and Time.
     """
     # Preprocess the image to get ROIs
-    superheavy_roi, starship_roi, time_roi = preprocess_image(
+    sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi = preprocess_image(
         image, display_rois)
 
     # Extract data for Superheavy
-    superheavy_data = extract_superheavy_data(
-        superheavy_roi, display_rois, debug)
+    superheavy_data = extract_superheavy_data(sh_speed_roi, sh_altitude_roi, display_rois, debug)
 
     # Extract data for Starship
-    starship_data = extract_starship_data(starship_roi, display_rois, debug)
+    starship_data = extract_starship_data(ss_speed_roi, ss_altitude_roi, display_rois, debug)
 
     # If Starship extraction returns nothing, give it Superheavy data
     if not starship_data.get("speed") or not starship_data.get("altitude"):

@@ -45,9 +45,9 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Step 3: Detect abrupt changes
     df['starship_speed_diff'] = df['starship_speed'].diff().abs()
-    df.loc[df['starship_speed_diff'] > 10, 'starship_speed'] = None
+    df.loc[df['starship_speed_diff'] > 50, 'starship_speed'] = None
     df['superheavy_speed_diff'] = df['superheavy_speed'].diff().abs()
-    df.loc[df['superheavy_speed_diff'] > 10, 'superheavy_speed'] = None
+    df.loc[df['superheavy_speed_diff'] > 50, 'superheavy_speed'] = None
     df['starship_altitude_diff'] = df['starship_altitude'].diff().abs()
     df.loc[df['starship_altitude_diff'] > 1, 'starship_altitude'] = None
     df['superheavy_altitude_diff'] = df['superheavy_altitude'].diff().abs()
@@ -74,18 +74,47 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
         return pd.DataFrame()  # Return an empty DataFrame in case of error
 
 
-def compute_acceleration(df: pd.DataFrame, speed_column: str) -> pd.Series:
+def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: int = 30, max_accel: float = 100.0) -> pd.Series:
     """
-    Calculate acceleration from speed data.
+    Calculate acceleration from speed data using a fixed frame distance.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
         speed_column (str): The column name for the speed data.
+        frame_distance (int): Number of frames to look ahead for calculating acceleration.
+        max_accel (float): Maximum allowed acceleration in m/s². Values above this will be set to None.
 
     Returns:
         pd.Series: The calculated acceleration.
     """
+    # Create a series for storing accelerations
+    acceleration = pd.Series(index=df.index, dtype=float)
+    
     # Convert speed from km/h to m/s
     speed_m_per_s = df[speed_column] * (1000 / 3600)
-    acceleration = speed_m_per_s.diff() / df['real_time'].diff()
+    
+    # Loop through the dataframe with a frame-distance offset
+    for i in range(len(df) - frame_distance):
+        if pd.isna(speed_m_per_s.iloc[i]) or pd.isna(speed_m_per_s.iloc[i + frame_distance]):
+            acceleration.iloc[i] = None
+            continue
+            
+        # Calculate speed difference over the frame distance
+        speed_diff = speed_m_per_s.iloc[i + frame_distance] - speed_m_per_s.iloc[i]
+        
+        # Calculate time difference over the frame distance
+        time_diff = df['real_time'].iloc[i + frame_distance] - df['real_time'].iloc[i]
+        
+        # Calculate acceleration if time difference is valid
+        if time_diff > 0:
+            accel_value = speed_diff / time_diff
+            # Filter out unrealistic acceleration values
+            if abs(accel_value) > max_accel:
+                acceleration.iloc[i] = None
+            else:
+                acceleration.iloc[i] = accel_value
+        else:
+            acceleration.iloc[i] = None
+    
+    # The last frame_distance frames will have NaN acceleration
     return acceleration

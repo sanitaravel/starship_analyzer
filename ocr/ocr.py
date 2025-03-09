@@ -1,10 +1,8 @@
 import os
 import re
-import cv2
 import pytesseract
 import numpy as np
 from typing import Dict, Tuple, Optional
-from utils import display_image
 
 # Set the Tesseract executable path from the environment variable
 pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD")
@@ -22,38 +20,26 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     Returns:
         dict: A dictionary containing the extracted values.
     """
-    # gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    
-    # Remove antialiasing by applying a bilateral filter
-    roi = cv2.bilateralFilter(roi, d=9, sigmaColor=75, sigmaSpace=75)
-    
-    if display_transformed:
-        display_image(roi, "Antialiased ROI")
-    
-    # Increase sharpness of the ROI
-    kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
-    roi = cv2.filter2D(roi, -1, kernel)
-    
-    if display_transformed:
-        display_image(roi, "Sharpened ROI")
-    
-    # Mask everything out besides the color FAF8FA and its closest ones
-    lower_bound = np.array([230, 230, 230])
-    upper_bound = np.array([255, 255, 255])
-    mask = cv2.inRange(roi, lower_bound, upper_bound)
-    masked_roi = cv2.bitwise_and(roi, roi, mask=mask)
-    gray = cv2.cvtColor(masked_roi, cv2.COLOR_BGR2GRAY)
-    
-    # Display the transformed image if requested
-    if display_transformed:
-        display_image(gray, "Transformed ROI")
-    
-    # Use Tesseract to do OCR on the ROI
+    # Try normal OCR first, then fallback to single character mode if needed
     try:
-        text = pytesseract.image_to_string(gray).lower()
-    except:
-        print("Program failed to read a text!")
-        return ""
+        # First attempt with normal page segmentation mode
+        text = pytesseract.image_to_string(roi)
+        
+        # Check if result is empty or None
+        if not text or text.strip() == "":
+            if debug:
+                print("Normal OCR mode returned empty result, trying single character mode...")
+            
+            # Fallback to single character mode with restricted characters
+            custom_config = r'--psm 10 -c tessedit_char_whitelist="0123456789T+-:'
+            text = pytesseract.image_to_string(roi, config=custom_config)
+            
+        if debug:
+            print(f"Raw OCR result: {text}")
+            
+    except Exception as e:
+        print(f"Program failed to read text: {str(e)}")
+        return {}
     
     # Clean the OCR result
     cleaned_text = clean_ocr_result(text)
@@ -62,14 +48,35 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     if debug:
         print(f"OCR Result for ROI: {cleaned_text}")
     
-    if mode == "data":
-        # Extract speed and altitude from the cleaned text
-        speed, altitude = extract_speed_and_altitude(cleaned_text)
-        return {"speed": speed, "altitude": altitude}
+    if mode == "speed":
+        # Extract just the speed value
+        speed = extract_single_value(cleaned_text)
+        return {"value": speed}
+    elif mode == "altitude":
+        # Extract just the altitude value
+        altitude = extract_single_value(cleaned_text)
+        return {"value": altitude}
     elif mode == "time":
         # Extract time from the cleaned text
         time = extract_time(cleaned_text)
         return time
+    else:
+        return {}
+
+def extract_single_value(text: str) -> Optional[int]:
+    """
+    Extract a single numeric value from the cleaned text.
+    
+    Args:
+        text (str): The cleaned text.
+        
+    Returns:
+        Optional[int]: The extracted numeric value, or None if no value was found.
+    """
+    numbers = re.findall(r'\d+', text)
+    if numbers:
+        return int(numbers[0])
+    return None
 
 def clean_ocr_result(text: str) -> str:
     """

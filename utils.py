@@ -2,7 +2,6 @@ import cv2
 import os
 import numpy as np
 
-
 def display_image(image: np.ndarray, text: str) -> None:
     """
     Display an image in a window.
