@@ -16,6 +16,7 @@ This project extracts and analyzes telemetry data from SpaceX Starship launch vi
 ```text
 starship_analyzer/
 ├── README.md
+├── LICENSE
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
@@ -57,12 +58,6 @@ starship_analyzer/
 
    ```sh
    python setup.py
-   ```
-
-4. **Create directories for data**:
-
-   ```sh
-   mkdir -p flight_recordings results .tmp
    ```
 
 ## Usage
@@ -146,4 +141,17 @@ Contributions are welcome! Please feel free to:
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License with Attribution Requirement. 
+
+This means you are free to use, modify, and distribute this software, but you must give appropriate credit to the original author, provide a link to the license, and indicate if changes were made.
+
+See the [LICENSE](LICENSE) file for the full license text.
+
+## Citation
+
+If you use this software in your project or research, please cite it as:
+
+```text
+Starship Analyzer by Alexander Koshcheev
+GitHub: https://github.com/sanitaravel/starship_analyzer
+```
