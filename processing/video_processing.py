@@ -115,17 +115,17 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
 
         if debug:
             if real_time:
-                real_time_str = f"{real_time['hours']:02}:{real_time['minutes']:02}:{
-                    real_time['seconds']:02}.{real_time['milliseconds']:03}"
+                real_time_str = f"{real_time['hours']:02}:{real_time['minutes']:02}:{real_time['seconds']:02}.{real_time['milliseconds']:03}"
                 print(
                     f"\rFrame {frame_number} - Real Time: {real_time_str}", end='')
             else:
                 print(
                     f"\rFrame {frame_number} - Real Time: Not calculated", end='')
 
-    folder_name = f"results\\launch_{launch_number}"
+    # Use os.path.join for OS-agnostic file paths
+    folder_name = os.path.join("results", f"launch_{launch_number}")
     os.makedirs(folder_name, exist_ok=True)
 
-    with open(f"results\\launch_{launch_number}\\results.json", "w") as f:
+    with open(os.path.join(folder_name, "results.json"), "w") as f:
         json.dump(results, f, indent=4)
         print("JSON dumped successfully.")

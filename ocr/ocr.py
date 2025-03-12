@@ -4,9 +4,6 @@ import pytesseract
 import numpy as np
 from typing import Dict, Tuple, Optional
 
-# Set the Tesseract executable path from the environment variable
-pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_CMD")
-
 def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transformed: bool = False, debug: bool = False) -> Dict:
     """
     Extract values from a region of interest (ROI) in an image.
@@ -23,6 +20,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     # Try normal OCR first, then fallback to single character mode if needed
     try:
         # First attempt with normal page segmentation mode
+        # display_image(roi, "ROI")
         text = pytesseract.image_to_string(roi)
         
         # Check if result is empty or None
@@ -31,7 +29,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 print("Normal OCR mode returned empty result, trying single character mode...")
             
             # Fallback to single character mode with restricted characters
-            custom_config = r'--psm 10 -c tessedit_char_whitelist="0123456789T+-:'
+            custom_config = r'--psm 10 -c tessedit_char_whitelist="0123456789T+-:"'
             text = pytesseract.image_to_string(roi, config=custom_config)
             
         if debug:

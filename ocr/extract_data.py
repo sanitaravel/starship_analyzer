@@ -2,7 +2,7 @@ import numpy as np
 from typing import Tuple, Dict
 from utils import display_image
 from .ocr import extract_values_from_roi
-
+from .engine_detection import detect_engine_status
 
 def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -116,7 +116,7 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
 
     # Extract data for Superheavy
     superheavy_data = extract_superheavy_data(sh_speed_roi, sh_altitude_roi, display_rois, debug)
-
+    
     # Extract data for Starship
     starship_data = extract_starship_data(ss_speed_roi, ss_altitude_roi, display_rois, debug)
 
@@ -126,5 +126,12 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
 
     # Extract time separately
     time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
+    
+    # Detect engine status
+    engine_data = detect_engine_status(image, debug)
+    
+    # Add engine data to vehicle data
+    superheavy_data["engines"] = engine_data["superheavy"]
+    starship_data["engines"] = engine_data["starship"]
 
     return superheavy_data, starship_data, time_data

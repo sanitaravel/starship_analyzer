@@ -3,14 +3,13 @@ from plot import plot_flight_data, compare_multiple_launches
 from processing import process_image, process_video_frame, process_frame, iterate_through_frames
 import os
 from inquirer import errors
-import re
 
 
 def validate_number(_, current):
     try:
         if current.strip() == "":  # Allow empty for default values
             return True
-        value = int(current)
+        _ = int(current)
         return True
     except ValueError:
         raise errors.ValidationError('', reason='Please enter a valid number')
@@ -18,10 +17,10 @@ def validate_number(_, current):
 
 def get_video_files_from_flight_recordings():
     """Get a list of video files from the flight_recordings folder."""
-    flight_recordings_folder = '.\\flight_recordings'
+    flight_recordings_folder = os.path.join('.', 'flight_recordings')
     video_files = []
     
-    if os.path.exists(flight_recordings_folder):
+    if (os.path.exists(flight_recordings_folder)):
         for root, _, files in os.walk(flight_recordings_folder):
             for file in files:
                 if file.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
@@ -34,9 +33,10 @@ def get_video_files_from_flight_recordings():
     return video_files
 
 
-def display_menu() -> None:
+def display_menu() -> bool:
     """
     Display a step-by-step menu for the user to navigate and select options.
+    Returns False if the user wants to exit, True otherwise.
     """
     questions = [
         inquirer.List(
@@ -73,12 +73,13 @@ def display_menu() -> None:
         answers = inquirer.prompt(questions)
         process_image(answers['image_path'],
                       answers['display_rois'], answers['debug'])
+        return True
 
     elif answers['action'] == 'Extract data from a random frame in a video':
         # Get list of video files from flight_recordings folder
         video_files = get_video_files_from_flight_recordings()
         if not video_files:
-            return
+            return True
             
         questions = [
             inquirer.List(
@@ -99,13 +100,14 @@ def display_menu() -> None:
         start_time = int(answers['start_time']) if answers['start_time'] else 0
         end_time = int(answers['end_time']) if answers['end_time'] else -1
         process_video_frame(
-            answers['video_path'][1], answers['display_rois'], answers['debug'], start_time, end_time)
+            answers['video_path'], answers['display_rois'], answers['debug'], start_time, end_time)
+        return True
 
     elif answers['action'] == 'Extract data from a specified frame in a video':
         # Get list of video files from flight_recordings folder
         video_files = get_video_files_from_flight_recordings()
         if not video_files:
-            return
+            return True
             
         questions = [
             inquirer.List(
@@ -121,14 +123,15 @@ def display_menu() -> None:
                 'debug', message="Enable debug prints?", default=False),
         ]
         answers = inquirer.prompt(questions)
-        process_frame(answers['video_path'][1], int(answers['frame_number']),
-                      answers['display_rois'], answers['debug'], ".\\.tmp\\specified_frame.jpg")
+        process_frame(answers['video_path'], int(answers['frame_number']),
+                      answers['display_rois'], answers['debug'], os.path.join('.', '.tmp', 'specified_frame.jpg'))
+        return True
 
     elif answers['action'] == 'Extract data from a user-specified frame in a video':
         # Get list of video files from flight_recordings folder
         video_files = get_video_files_from_flight_recordings()
         if not video_files:
-            return
+            return True
             
         questions = [
             inquirer.List(
@@ -144,14 +147,15 @@ def display_menu() -> None:
                 'debug', message="Enable debug prints?", default=False),
         ]
         answers = inquirer.prompt(questions)
-        process_frame(answers['video_path'][1], int(answers['frame_number']),
-                      answers['display_rois'], answers['debug'], ".\\.tmp\\user_specified_frame.jpg")
+        process_frame(answers['video_path'], int(answers['frame_number']),
+                      answers['display_rois'], answers['debug'], os.path.join('.', '.tmp', 'user_specified_frame.jpg'))
+        return True
 
     elif answers['action'] == 'Run through whole video':
         # Get list of video files from flight_recordings folder
         video_files = get_video_files_from_flight_recordings()
         if not video_files:
-            return
+            return True
             
         questions = [
             inquirer.List(
@@ -163,16 +167,19 @@ def display_menu() -> None:
                           validate=validate_number),
         ]
         answers = inquirer.prompt(questions)
+        print(answers)
         iterate_through_frames(
-            answers['video_path'][1], int(answers['launch_number']))
+            answers['video_path'], int(answers['launch_number']))
+        return True
 
     elif answers['action'] == 'Analyze flight data':
-        launch_folders = [f for f in os.listdir('.\\results') if os.path.isdir(
-            os.path.join('.\\results', f)) and f != 'compare_launches']
+        results_dir = os.path.join('.', 'results')
+        launch_folders = [f for f in os.listdir(results_dir) if os.path.isdir(
+            os.path.join(results_dir, f)) and f != 'compare_launches']
 
         if not launch_folders:
             print("No launch folders found in ./results directory.")
-            return
+            return True
 
         questions = [
             inquirer.List(
@@ -189,19 +196,20 @@ def display_menu() -> None:
         ]
         answers = inquirer.prompt(questions)
 
-        json_path = os.path.join(
-            '.\\results', answers['launch_folder'], 'results.json')
+        json_path = os.path.join(results_dir, answers['launch_folder'], 'results.json')
         start_time = int(answers['start_time']) if answers['start_time'] else 0
         end_time = int(answers['end_time']) if answers['end_time'] else -1
         plot_flight_data(json_path, start_time, end_time, show_figures=answers['show_figures'])
+        return True
 
     elif answers['action'] == 'Compare multiple launches':
-        launch_folders = [f for f in os.listdir('.\\results') if os.path.isdir(
-            os.path.join('.\\results', f)) and f != 'compare_launches']
+        results_dir = os.path.join('.', 'results')
+        launch_folders = [f for f in os.listdir(results_dir) if os.path.isdir(
+            os.path.join(results_dir, f)) and f != 'compare_launches']
 
         if len(launch_folders) < 2:
             print("Need at least two launch folders in ./results directory to compare.")
-            return
+            return True
 
         questions = [
             inquirer.Checkbox(
@@ -220,24 +228,26 @@ def display_menu() -> None:
 
         if len(answers['launches']) < 2:
             print("Please select at least two launches to compare.")
-            return
+            return True
 
-        json_paths = [os.path.join('.\\results', folder, 'results.json')
+        json_paths = [os.path.join(results_dir, folder, 'results.json')
                       for folder in answers['launches']]
         start_time = int(answers['start_time']) if answers['start_time'] else 0
         end_time = int(answers['end_time']) if answers['end_time'] else -1
         compare_multiple_launches(start_time, end_time, json_paths, show_figures=answers['show_figures'])
+        return True
 
     elif answers['action'] == 'Exit':
         print("Exiting the program.")
-        exit()
+        return False  # Return False to break the loop in main()
 
 
 def main() -> None:
     """
     Main function to handle the step-by-step menu and run the appropriate function.
     """
-    display_menu()
+    while display_menu():
+        pass  # Continue looping until display_menu returns False
 
 
 if __name__ == "__main__":

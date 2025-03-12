@@ -70,9 +70,10 @@ def process_video_frame(video_path: str, display_rois: bool, debug: bool, start_
     if not ret:
         raise ValueError("Failed to extract frame from video")
 
-    image_path = ".\\.tmp\\random_frame.jpg"
-    os.makedirs('.\\.tmp', exist_ok=True)
-    cv2.imwrite(".\\.tmp\\random_frame.jpg", frame)
+    tmp_dir = os.path.join('.', '.tmp')
+    os.makedirs(tmp_dir, exist_ok=True)
+    image_path = os.path.join(tmp_dir, "random_frame.jpg")
+    cv2.imwrite(image_path, frame)
     print(f"Extracted frame number: {random_frame_number}")
     process_image(image_path, display_rois, debug)
 

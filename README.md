@@ -1,6 +1,15 @@
 # Starship Launch Data Extraction and Analysis
 
-This project is designed to extract and analyze data from Starship launch videos. It uses Optical Character Recognition (OCR) to extract speed, altitude, and time data from video frames and provides tools for plotting and comparing the extracted data.
+This project extracts and analyzes telemetry data from SpaceX Starship launch videos. Using advanced Optical Character Recognition (OCR), the tool extracts speed, altitude, time data, and engine status from video frames and provides comprehensive tools for plotting and comparing the extracted data across different launches.
+
+## Features
+
+- **Automated Data Extraction**: Extract telemetry data from individual images or video frames
+- **Engine Status Detection**: Track which engines are active during flight
+- **Data Visualization**: Generate detailed plots of speed, altitude, acceleration, and G-forces
+- **Multi-launch Comparison**: Compare telemetry data between different Starship launches
+- **Interactive UI**: User-friendly menu-driven interface
+- **Data Cleaning**: Intelligent filtering and validation of extracted data
 
 ## Project Structure
 
@@ -12,9 +21,11 @@ starship_analyzer/
 ├── .gitignore
 ├── setup.py
 ├── main.py
+├── utils.py
 ├── ocr/
 │   ├── __init__.py
 │   ├── extract_data.py
+│   ├── engine_detection.py
 │   └── ocr.py
 ├── plot/
 │   ├── __init__.py
@@ -24,85 +35,114 @@ starship_analyzer/
 │   ├── __init__.py
 │   ├── frame_processing.py
 │   └── video_processing.py
-└── utils.py
+└── results/
+    └── launch_X/
+        └── results.json
 ```
 
 ## Installation
 
-1. **Clone the repository:**
+1. **Prerequisites**:
+   - Python 3.8 or higher
+   - Tesseract OCR installed ([Installation guide](https://github.com/tesseract-ocr/tesseract))
+
+2. **Clone the repository**:
 
    ```sh
    git clone https://github.com/sanitaravel/starship_analyzer.git
-   cd starship-launch-data
+   cd starship_analyzer
    ```
 
-2. **Set up the virtual environment and install dependencies:**
+3. **Set up the virtual environment and install dependencies**:
 
    ```sh
    python setup.py
    ```
 
-3. **Set up the environment variables:**
-   - Copy the `.env.example` file to `.env` and set the path to the Tesseract executable.
+4. **Create directories for data**:
 
    ```sh
-   cp .env.example .env
+   mkdir -p flight_recordings results .tmp
    ```
 
 ## Usage
 
-### Running the Main Script
+### Running the Application
 
-The main script provides a step-by-step menu for processing images and videos, analyzing flight data, and comparing multiple launches.
+Launch the application with:
 
 ```sh
 python main.py
 ```
 
+### Workflow
+
+1. Place flight videos in the `flight_recordings` folder
+2. Use the menu to process frames or entire videos
+3. View results in real-time or analyze saved data
+4. Compare multiple launches for comprehensive analysis
+
 ### Menu Options
 
-1. **Process a single image:** Extract data from a specified image file.
-2. **Extract data from a random frame in a video:** Extract data from a random frame within a specified timeframe in a video.
-3. **Extract data from a specified frame in a video:** Extract data from a specific frame in a video.
-4. **Extract data from a user-specified frame in a video:** Extract data from a user-specified frame in a video.
-5. **Run through whole video:** Iterate through all frames in a video and extract data.
-6. **Analyze flight data:** Analyze and plot data from a JSON file containing the results.
-7. **Compare multiple launches:** Compare data from multiple launches and plot the results.
-8. **Exit:** Exit the program.
+1. **Process a single image**: Extract telemetry data from a specific image.
+2. **Extract data from a random frame**: Get telemetry from a random frame within a specified timeframe.
+3. **Extract data from a specified frame**: Process data from a specific frame number.
+4. **Extract data from a user-specified frame**: Interactively select a frame to analyze.
+5. **Process entire video**: Extract telemetry from all frames in a video.
+6. **Analyze flight data**: Generate plots and visualizations from saved results.
+7. **Compare multiple launches**: Create comparative visualizations between different flights.
+8. **Exit**: Quit the application.
 
 ## Modules
 
 ### ocr
 
-- **Purpose:** Handle OCR and data extraction from images.
-- **Files:**
-  - `extract_data.py`: Functions for extracting data from images.
-  - `ocr.py`: Functions for OCR processing.
+Handles image processing and data extraction via OCR:
+
+- **extract_data.py**: Coordinates the extraction of telemetry data from image regions
+- **ocr.py**: Core OCR functionality for recognizing text in images
+- **engine_detection.py**: Detects active engines in Superheavy and Starship vehicles
 
 ### plot
 
-- **Purpose:** Handle plotting and analysis of extracted data.
-- **Files:**
-  - `data_processing.py`: Functions for validating and cleaning data.
-  - `plotting.py`: Functions for plotting and comparing flight data.
+Manages data cleaning, processing and visualization:
+
+- **data_processing.py**: Validates, cleans and processes telemetry data
+- **plotting.py**: Creates visualizations of speed, altitude, acceleration, and engine status
 
 ### processing
 
-- **Purpose:** Handle video processing tasks.
-- **Files:**
-  - `frame_processing.py`: Functions for processing individual frames.
-  - `video_processing.py`: Functions for processing video frames and extracting data.
+Handles video processing workflows:
 
-### `utils.py`
+- **frame_processing.py**: Functions for processing individual video frames
+- **video_processing.py**: Parallel processing of video frames for efficient data extraction
 
-- **Purpose:** Utility functions used across the project.
-- **Functions:**
-  - `display_image(image: np.ndarray, text: str) -> None`: Display an image in a window.
-  - `extract_launch_number(json_path: str) -> str`: Extract the launch number from a JSON file path.
+### utils.py
+
+Utility functions used across the project:
+
+- **display_image()**: Shows image data in a window for debugging
+- **extract_launch_number()**: Parses launch identifiers from file paths
+
+## Output
+
+The tool generates JSON data and visualizations including:
+
+- Speed vs. time plots
+- Altitude vs. time plots
+- Acceleration and G-force analysis
+- Engine activity timelines
+- Correlation plots between engine activity and vehicle performance
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+Contributions are welcome! Please feel free to:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 

@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 
@@ -33,26 +34,95 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: The cleaned DataFrame.
     """
     # Step 1: Ensure numeric values
-    for column in ['starship_speed', 'superheavy_speed', 'starship_altitude', 'superheavy_altitude']:
+    for column in ['starship.speed', 'superheavy.speed', 'starship.altitude', 'superheavy.altitude']:
         df[column] = pd.to_numeric(df[column], errors='coerce')
 
     # Step 2: Remove impossible values
-    df['starship_speed'] = df['starship_speed'].clip(lower=0, upper=28000)
-    df['superheavy_speed'] = df['superheavy_speed'].clip(lower=0, upper=6000)
-    df['starship_altitude'] = df['starship_altitude'].clip(lower=0, upper=200)
-    df['superheavy_altitude'] = df['superheavy_altitude'].clip(
+    df['starship.speed'] = df['starship.speed'].clip(lower=0, upper=28000)
+    df['superheavy.speed'] = df['superheavy.speed'].clip(lower=0, upper=6000)
+    df['starship.altitude'] = df['starship.altitude'].clip(lower=0, upper=200)
+    df['superheavy.altitude'] = df['superheavy.altitude'].clip(
         lower=0, upper=100)
 
     # Step 3: Detect abrupt changes
-    df['starship_speed_diff'] = df['starship_speed'].diff().abs()
-    df.loc[df['starship_speed_diff'] > 50, 'starship_speed'] = None
-    df['superheavy_speed_diff'] = df['superheavy_speed'].diff().abs()
-    df.loc[df['superheavy_speed_diff'] > 50, 'superheavy_speed'] = None
-    df['starship_altitude_diff'] = df['starship_altitude'].diff().abs()
-    df.loc[df['starship_altitude_diff'] > 1, 'starship_altitude'] = None
-    df['superheavy_altitude_diff'] = df['superheavy_altitude'].diff().abs()
-    df.loc[df['superheavy_altitude_diff'] > 1, 'superheavy_altitude'] = None
+    df['starship.speed_diff'] = df['starship.speed'].diff().abs()
+    df.loc[df['starship.speed_diff'] > 50, 'starship.speed'] = None
+    df['superheavy.speed_diff'] = df['superheavy.speed'].diff().abs()
+    df.loc[df['superheavy.speed_diff'] > 50, 'superheavy.speed'] = None
+    df['starship.altitude_diff'] = df['starship.altitude'].diff().abs()
+    df.loc[df['starship.altitude_diff'] > 1, 'starship.altitude'] = None
+    df['superheavy.altitude_diff'] = df['superheavy.altitude'].diff().abs()
+    df.loc[df['superheavy.altitude_diff'] > 1, 'superheavy.altitude'] = None
 
+    return df
+
+
+def process_engine_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Process engine data from the JSON and calculate number of active engines.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with raw engine data
+        
+    Returns:
+        pd.DataFrame: DataFrame with processed engine data
+    """
+    # Create columns for engine counts
+    df['superheavy_central_active'] = 0
+    df['superheavy_central_total'] = 3
+    df['superheavy_inner_active'] = 0  
+    df['superheavy_inner_total'] = 10
+    df['superheavy_outer_active'] = 0
+    df['superheavy_outer_total'] = 20
+    df['superheavy_all_active'] = 0
+    df['superheavy_all_total'] = 33  # 3 + 10 + 20 = 33 engines total
+    
+    df['starship_rearth_active'] = 0
+    df['starship_rearth_total'] = 3
+    df['starship_rvac_active'] = 0
+    df['starship_rvac_total'] = 3
+    df['starship_all_active'] = 0
+    df['starship_all_total'] = 6  # 3 + 3 = 6 engines total
+    
+    # Process engine data using the correct column structure
+    try:
+        # Check if the expected columns exist
+        engine_columns = {
+            'superheavy.engines.central_stack': 'superheavy_central_active',
+            'superheavy.engines.inner_ring': 'superheavy_inner_active',
+            'superheavy.engines.outer_ring': 'superheavy_outer_active',
+            'starship.engines.rearth': 'starship_rearth_active',
+            'starship.engines.rvac': 'starship_rvac_active'
+        }
+        
+        for src_col, dest_col in tqdm(engine_columns.items(), desc="Processing engine columns"):
+            if src_col in df.columns:
+                # Sum the boolean values in each row to get active engine count
+                # Each row contains a list of boolean values (True = engine active)
+                df[dest_col] = df[src_col].apply(
+                    lambda x: sum(1 for engine in x if engine) if isinstance(x, list) else 0
+                )
+                
+        # Calculate total active engines
+        df['superheavy_all_active'] = (
+            df['superheavy_central_active'] + 
+            df['superheavy_inner_active'] + 
+            df['superheavy_outer_active']
+        )
+        
+        df['starship_all_active'] = (
+            df['starship_rearth_active'] + 
+            df['starship_rvac_active']
+        )
+            
+        # Drop the original engine columns as they're now processed
+        for col in engine_columns.keys():
+            if col in df.columns:
+                df = df.drop(columns=[col])
+                
+    except Exception as e:
+        print(f"Error processing engine data: {e}")
+    
     return df
 
 
@@ -60,18 +130,42 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
     try:
         with open(json_path, "r") as f:
             data = json.load(f)
-        df = pd.DataFrame(data)
-        df.drop(columns=["time"], inplace=True)
-        for column in tqdm(["superheavy", "starship"], desc="Separating columns"):
-            df[[f"{column}_speed", f"{column}_altitude"]
-               ] = df[column].apply(pd.Series)
-        df.drop(columns=["superheavy", "starship"], inplace=True)
+        
+        # Use json_normalize with sep='.' to flatten nested dictionaries with dot notation
+        df = pd.json_normalize(data)
+        
+        # Process engine data
+        df = process_engine_data(df)
+        
+        # Drop time column as we're using real_time
+        if 'time' in df.columns:
+            df.drop(columns=["time"], inplace=True)
+        
+        # Clean velocity and altitude columns
+        # Assuming they're now in the format 'superheavy.speed', 'starship.speed', etc.
+        # Check if we need to rename columns
+        if 'superheavy.speed' not in df.columns and 'superheavy.speed' not in df.columns:
+            # Extract speed and altitude from nested dictionaries if needed
+            for column in tqdm(["superheavy", "starship"], desc="Separating columns"):
+                if column in df.columns:
+                    df[[f"{column}.speed", f"{column}.altitude"]] = df[column].apply(pd.Series)
+                    df.drop(columns=[column], inplace=True)
+                    
+        # Sort by time
         df.sort_values(by="real_time", inplace=True)
+        
+        # Clean data
         df = clean_dataframe(df)
+        
         return df
     except json.JSONDecodeError:
         print("Invalid JSON format.")
         return pd.DataFrame()  # Return an empty DataFrame in case of error
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        import traceback
+        traceback.print_exc()
+        return pd.DataFrame()
 
 
 def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: int = 30, max_accel: float = 100.0) -> pd.Series:
