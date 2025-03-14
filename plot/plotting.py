@@ -185,6 +185,13 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
             # Use LOWESS to create a smooth trendline (adjust frac for different smoothing levels)
             z = lowess(valid_data[y], valid_data[x], frac=0.01)
             plt.plot(z[:, 0], z[:, 1], 'r-', linewidth=2, label=f"{label} (Trend)")
+            
+    # Add NASA's 3G limit line for G-force plots
+    if 'g_force' in y:
+        plt.axhline(y=4.5, color='red', linestyle='--', linewidth=2, 
+                    label="NASA's 4.5G Maximum Sustained Acceleration Limit")
+        plt.axhline(y=-4.5, color='red', linestyle='--', linewidth=2, 
+                    label="NASA's -4.5G Maximum Sustained Acceleration Limit")
     
     plt.xlabel(x_axis if x_axis else x.capitalize())
     plt.ylabel(y_axis if y_axis else y.capitalize())
@@ -355,7 +362,7 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
 
 
 def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: str, folder: str,
-                           labels: list[str], x_axis: str = None, y_axis: str = None) -> None:
+                           labels: list[str], x_axis: str = None, y_axis: str = None, show_figures:bool=True) -> None:
     """
     Plot a comparison of multiple dataframes.
 
@@ -369,6 +376,7 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
         folder (str): The folder to save the graph in.
         x_axis (str): The label for the x-axis.
         y_axis (str): The label for the y-axis.
+        show_figures (bool): Whether to show figures or just save them.
     """
     plt.figure(figsize=(16, 9))
     
@@ -376,8 +384,6 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
     for i, (df, label) in enumerate(zip(df_list, labels)):
         # Get a unique color from the color cycle
         color = plt.cm.tab10(i)
-        
-        
         
         # Add trendline for acceleration and g-force plots
         if 'acceleration' in y or 'g_force' in y:
@@ -395,6 +401,11 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
             # Create scatter plot with increased transparency
             sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw)", s=4, alpha=0.5, color=color)
     
+    # Add NASA's 3G limit line for G-force plots
+    if 'g_force' in y:
+        plt.axhline(y=3, color='red', linestyle='--', linewidth=2, 
+                    label="NASA's 3G Maximum Sustained Acceleration Limit")
+    
     plt.xlabel(x_axis if x_axis else x.capitalize())
     plt.ylabel(y_axis if y_axis else y.capitalize())
     plt.title(title)
@@ -405,15 +416,21 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
         if not isinstance(handle, plt.Line2D):  # This is a scatter point
             handle.set_rasterized(8)  # Make the marker bigger in the legend
             handle.set_alpha(1.0)     # Make it fully opaque
+            
+    print(handles, labels)
     
     plt.legend(handles=handles, labels=labels)
     plt.grid(True)
     os.makedirs(folder, exist_ok=True)
     plt.savefig(os.path.join(folder, filename))
-    plt.show()
+    
+    if show_figures:
+        plt.show()
+    else:
+        plt.close()
 
 
-def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str) -> None:
+def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, show_figures:bool=True) -> None:
     """
     Plot multiple launches on the same plot with a specified time window.
 
@@ -453,8 +470,8 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str) 
 
     for params in PLOT_MULTIPLE_LAUNCHES_PARAMS:
         if len(params) == 4:
-            plot_multiple_launches(df_list, *params, folder_name, labels)
+            plot_multiple_launches(df_list, *params, folder_name, labels, show_figures=show_figures)
         else:
             # Unpack: x, y, title, filename, x_axis, y_axis.
             x, y, title, filename, x_axis, y_axis = params
-            plot_multiple_launches(df_list, x, y, title, filename, folder_name, labels, x_axis, y_axis)
+            plot_multiple_launches(df_list, x, y, title, filename, folder_name, labels, x_axis, y_axis, show_figures=show_figures)
