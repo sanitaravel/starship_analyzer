@@ -3,6 +3,7 @@ import subprocess
 import sys
 import platform
 import shutil
+import re
 from pathlib import Path
 
 # ANSI color codes for terminal output
@@ -28,35 +29,6 @@ def print_error(message):
     """Print an error message."""
     print(f"{RED}✗ {message}{RESET}")
 
-def check_gpu_availability():
-    """
-    Check if CUDA is available for GPU acceleration with EasyOCR.
-    
-    Returns:
-        bool: True if GPU is available, False otherwise.
-    """
-    print_step(1, "Checking GPU availability for EasyOCR")
-    
-    try:
-        # Try to import torch and check CUDA availability
-        import torch
-        if torch.cuda.is_available():
-            gpu_name = torch.cuda.get_device_name(0)
-            print_success(f"GPU is available: {gpu_name}")
-            print_success(f"CUDA Version: {torch.version.cuda}")
-            return True
-        else:
-            print_warning("CUDA is not available. EasyOCR will run on CPU mode (slower).")
-            print_warning("To use GPU acceleration, ensure you have a compatible NVIDIA GPU and CUDA installed.")
-            return False
-    except ImportError:
-        print_warning("PyTorch is not installed yet. GPU availability will be checked after dependencies installation.")
-        return False
-    except Exception as e:
-        print_warning(f"Error checking GPU availability: {e}")
-        print_warning("Will continue with CPU mode for EasyOCR.")
-        return False
-
 def create_virtual_environment():
     """
     Create a Python virtual environment.
@@ -64,7 +36,7 @@ def create_virtual_environment():
     Returns:
         bool: True if virtual environment was created successfully, False otherwise.
     """
-    print_step(2, "Creating Python virtual environment")
+    print_step(1, "Creating Python virtual environment")
     venv_dir = "venv"
     
     # Check if virtual environment already exists
@@ -95,7 +67,7 @@ def create_virtual_environment():
 
 def create_required_directories():
     """Create directories required for the application."""
-    print_step(3, "Creating required directories")
+    print_step(2, "Creating required directories")
     directories = ['flight_recordings', 'results', '.tmp']
     
     for directory in directories:
@@ -105,9 +77,167 @@ def create_required_directories():
         except Exception as e:
             print_error(f"Failed to create directory '{directory}': {e}")
 
-def install_dependencies():
+def check_cuda_version():
+    """
+    Check the installed CUDA version on the system.
+    
+    Returns:
+        str or None: CUDA version (e.g. '12.6', '12.4', '11.8') or None if not found
+    """
+    print_step(3, "Checking CUDA version for PyTorch installation")
+    
+    cuda_version = None
+    
+    try:
+        # Try nvidia-smi first (works on both Windows and Linux)
+        result = subprocess.run(["nvidia-smi"], capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            # Extract CUDA version from nvidia-smi output
+            match = re.search(r"CUDA Version: (\d+\.\d+)", result.stdout)
+            if match:
+                cuda_version = match.group(1)
+                print_success(f"CUDA version {cuda_version} detected using nvidia-smi")
+                return cuda_version
+    except Exception as e:
+        print_warning(f"nvidia-smi check failed: {e}")
+    
+    # Try Windows-specific checks
+    if platform.system() == "Windows":
+        try:
+            # Try checking Windows registry
+            import winreg
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\NVIDIA Corporation\CUDA") as key:
+                    cuda_version = winreg.QueryValueEx(key, "Version")[0]
+                    print_success(f"CUDA version {cuda_version} detected from registry")
+                    return cuda_version
+            except Exception:
+                pass
+                
+            # Check common install locations
+            cuda_paths = [
+                r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA",
+                os.path.expanduser("~") + r"\NVIDIA GPU Computing Toolkit\CUDA"
+            ]
+            
+            for base_path in cuda_paths:
+                if os.path.exists(base_path):
+                    versions = [d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d)) and d.startswith("v")]
+                    if versions:
+                        # Sort versions and take the latest
+                        versions.sort(reverse=True)
+                        cuda_version = versions[0][1:]  # Remove 'v' prefix
+                        print_success(f"CUDA version {cuda_version} detected in {base_path}")
+                        return cuda_version
+        except Exception as e:
+            print_warning(f"Windows registry check failed: {e}")
+    
+    # Try Linux-specific checks
+    elif platform.system() == "Linux":
+        try:
+            # Check CUDA_PATH environment variable
+            if "CUDA_PATH" in os.environ:
+                path = os.environ["CUDA_PATH"]
+                match = re.search(r"/cuda-(\d+\.\d+)", path)
+                if match:
+                    cuda_version = match.group(1)
+                    print_success(f"CUDA version {cuda_version} detected from CUDA_PATH")
+                    return cuda_version
+            
+            # Check common install locations on Linux
+            for cuda_path in ["/usr/local/cuda", "/usr/cuda"]:
+                if os.path.islink(cuda_path):
+                    target = os.readlink(cuda_path)
+                    match = re.search(r"cuda-(\d+\.\d+)", target)
+                    if match:
+                        cuda_version = match.group(1)
+                        print_success(f"CUDA version {cuda_version} detected from {cuda_path}")
+                        return cuda_version
+                elif os.path.isdir(cuda_path):
+                    # Try to find version from cuda binary
+                    nvcc_path = os.path.join(cuda_path, "bin", "nvcc")
+                    if os.path.exists(nvcc_path):
+                        result = subprocess.run([nvcc_path, "--version"], capture_output=True, text=True, check=False)
+                        match = re.search(r"release (\d+\.\d+)", result.stdout)
+                        if match:
+                            cuda_version = match.group(1)
+                            print_success(f"CUDA version {cuda_version} detected from nvcc")
+                            return cuda_version
+        except Exception as e:
+            print_warning(f"Linux CUDA check failed: {e}")
+    
+    # If we get here, no CUDA version was found
+    print_warning("No CUDA installation detected. Will install CPU-only version of PyTorch.")
+    return None
+
+def install_torch_with_cuda(pip_path, cuda_version):
+    """
+    Install PyTorch with the appropriate CUDA support.
+    
+    Args:
+        pip_path (str): Path to the pip executable
+        cuda_version (str or None): CUDA version or None for CPU-only
+        
+    Returns:
+        bool: True if installation was successful, False otherwise
+    """
+    # Map CUDA versions to PyTorch installation commands
+    cuda_map = {
+        "12.6": "cu126",
+        "12.4": "cu124",
+        "11.8": "cu118",
+        "11.7": "cu118",  # Fall back to 11.8 for 11.7
+        "11.6": "cu118",  # Fall back to 11.8 for 11.6
+        "11.5": "cu118",  # Fall back to 11.8 for 11.5
+    }
+    
+    # Normalize CUDA version - take only major.minor
+    if cuda_version:
+        cuda_version = ".".join(cuda_version.split(".")[:2])
+    
+    # Determine installation command
+    if cuda_version and cuda_version in cuda_map:
+        cuda_tag = cuda_map[cuda_version]
+        print_warning(f"Installing PyTorch with CUDA {cuda_version} support ({cuda_tag})...")
+        url = f"https://download.pytorch.org/whl/{cuda_tag}"
+        
+        try:
+            # Install PyTorch with specific CUDA support
+            result = subprocess.run(
+                [pip_path, "install", "torch", "torchvision", "--index-url", url],
+                check=True, capture_output=True, text=True
+            )
+            print_success(f"PyTorch installed with CUDA {cuda_version} support")
+            return True
+        except subprocess.CalledProcessError as e:
+            print_error(f"PyTorch installation with CUDA {cuda_version} failed:")
+            print_warning(e.stdout)
+            print_error(e.stderr)
+            print_warning("Falling back to CPU-only PyTorch installation")
+    else:
+        print_warning("No compatible CUDA version found or CUDA not detected")
+    
+    # Fall back to CPU-only installation
+    try:
+        print_warning("Installing CPU-only PyTorch...")
+        result = subprocess.run(
+            [pip_path, "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu"],
+            check=True, capture_output=True, text=True
+        )
+        print_success("CPU-only PyTorch installed")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error("CPU-only PyTorch installation failed:")
+        print_warning(e.stdout)
+        print_error(e.stderr)
+        return False
+
+def install_dependencies(cuda_version):
     """
     Install Python dependencies from requirements.txt into the virtual environment.
+    
+    Args:
+        cuda_version (str or None): CUDA version for PyTorch installation
     
     Returns:
         bool: True if dependencies were installed successfully, False otherwise.
@@ -138,74 +268,56 @@ def install_dependencies():
         print_warning("Upgrading pip in virtual environment...")
         subprocess.run([python_path, "-m", "pip", "install", "--upgrade", "pip"], check=True)
         
-        # Install dependencies using the virtual environment's pip
-        print_warning("Installing requirements into virtual environment... (this may take a while)")
-        subprocess.run([python_path, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
+        # Try to read requirements.txt with different encodings
+        requirements = []
+        encodings_to_try = ['utf-8', 'utf-16', 'utf-8-sig', 'latin-1', 'cp1252']
+        success = False
         
-        # Verify each important dependency individually
-        print_warning("Verifying installations...")
-        
-        # List of core dependencies to verify
-        dependencies = [
-            ("numpy", "NumPy (array processing)"),
-            ("cv2", "OpenCV (image processing)"),
-            ("torch", "PyTorch (deep learning)"),
-            ("easyocr", "EasyOCR (optical character recognition)")
-        ]
-        
-        all_successful = True
-        for module_name, description in dependencies:
+        for encoding in encodings_to_try:
             try:
-                # Try to import the module
-                cmd = f"import {module_name}; print('Success')"
-                result = subprocess.run([python_path, "-c", cmd], 
-                                      capture_output=True, text=True, check=False)
-                
-                if "Success" in result.stdout:
-                    # Get version if successful
-                    version_cmd = (
-                        f"import {module_name}; " 
-                        f"print(getattr({module_name}, '__version__', 'unknown version'))"
-                    )
-                    version_result = subprocess.run([python_path, "-c", version_cmd], 
-                                                  capture_output=True, text=True, check=False)
-                    version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown version"
-                    
-                    print_success(f"{description} - Installed ({version})")
-                else:
-                    print_error(f"{description} - Failed to import")
-                    all_successful = False
-                    print_warning(f"Error: {result.stderr.strip()}")
+                with open("requirements.txt", 'r', encoding=encoding) as f:
+                    requirements = f.readlines()
+                print_success(f"Successfully read requirements.txt using {encoding} encoding")
+                success = True
+                break
+            except UnicodeDecodeError:
+                continue
             except Exception as e:
-                print_error(f"{description} - Error during verification: {e}")
-                all_successful = False
+                print_error(f"Error reading requirements.txt: {e}")
+                return False
         
-        # Special check for GPU support
-        try:
-            gpu_cmd = "import torch; print(torch.cuda.is_available())"
-            gpu_check = subprocess.run([python_path, "-c", gpu_cmd], 
-                                      capture_output=True, text=True, check=True)
-            
-            if "True" in gpu_check.stdout:
-                device_cmd = "import torch; print(torch.cuda.get_device_name(0))"
-                device_check = subprocess.run([python_path, "-c", device_cmd], 
-                                            capture_output=True, text=True, check=False)
-                gpu_name = device_check.stdout.strip() if device_check.returncode == 0 else "unknown device"
-                
-                print_success(f"GPU Acceleration - Available ({gpu_name})")
-            else:
-                print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")
-        except Exception as e:
-            print_warning(f"GPU Acceleration - Could not verify: {e}")
-        
-        # Return overall success status
-        if all_successful:
-            print_success("All core dependencies were installed successfully")
-            return True
-        else:
-            print_error("Some dependencies failed to install correctly")
-            print_warning("Try manually installing the missing packages or check for errors")
+        if not success:
+            print_error("Failed to read requirements.txt with any known encoding")
+            print_warning("Please ensure the file is properly encoded (preferably as UTF-8)")
             return False
+        
+        # Create a modified requirements file without torch and torchvision
+        temp_req_path = os.path.join(".tmp", "requirements_without_torch.txt")
+        os.makedirs(os.path.dirname(temp_req_path), exist_ok=True)
+        
+        with open(temp_req_path, 'w', encoding='utf-8') as f:
+            for line in requirements:
+                # Skip comment lines that might be causing problems
+                if line.strip().startswith("//"):
+                    continue
+                if not (line.startswith("torch") or line.startswith("torchvision")):
+                    f.write(line)
+        
+        # Install other dependencies first
+        print_warning("Installing other dependencies from requirements.txt...")
+        other_deps = subprocess.run([pip_path, "install", "-r", temp_req_path], 
+                                   capture_output=True, text=True, check=True)
+        
+        # Install PyTorch with appropriate CUDA support
+        torch_installed = install_torch_with_cuda(pip_path, cuda_version)
+        
+        if not torch_installed:
+            print_error("Failed to install PyTorch")
+            return False
+        
+        # Installation completed successfully
+        print_success("All dependencies installed successfully")
+        return True
             
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to install dependencies: {e}")
@@ -217,6 +329,91 @@ def install_dependencies():
         import traceback
         print_warning(traceback.format_exc())
         return False
+
+def verify_installations(python_path):
+    """
+    Verify that all necessary dependencies are installed correctly.
+    
+    Args:
+        python_path (str): Path to the Python executable
+        
+    Returns:
+        tuple: (bool for success, bool for GPU available)
+    """
+    print_step(5, "Verifying installations")
+    
+    # List of core dependencies to verify
+    dependencies = [
+        ("numpy", "NumPy (array processing)"),
+        ("cv2", "OpenCV (image processing)"),
+        ("torch", "PyTorch (deep learning)"),
+        ("easyocr", "EasyOCR (optical character recognition)")
+    ]
+    
+    all_successful = True
+    gpu_available = False
+    
+    for module_name, description in dependencies:
+        try:
+            # Try to import the module
+            cmd = f"import {module_name}; print('Success')"
+            result = subprocess.run([python_path, "-c", cmd], 
+                                  capture_output=True, text=True, check=False)
+            
+            if "Success" in result.stdout:
+                # Get version if successful
+                version_cmd = (
+                    f"import {module_name}; " 
+                    f"print(getattr({module_name}, '__version__', 'unknown version'))"
+                )
+                version_result = subprocess.run([python_path, "-c", version_cmd], 
+                                              capture_output=True, text=True, check=False)
+                version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown version"
+                
+                print_success(f"{description} - Installed ({version})")
+            else:
+                print_error(f"{description} - Failed to import")
+                all_successful = False
+                print_warning(f"Error: {result.stderr.strip()}")
+        except Exception as e:
+            print_error(f"{description} - Error during verification: {e}")
+            all_successful = False
+    
+    # Special check for GPU support
+    try:
+        gpu_cmd = "import torch; print(torch.cuda.is_available())"
+        gpu_check = subprocess.run([python_path, "-c", gpu_cmd], 
+                                  capture_output=True, text=True, check=True)
+        
+        if "True" in gpu_check.stdout:
+            device_cmd = "import torch; print(torch.cuda.get_device_name(0))"
+            device_check = subprocess.run([python_path, "-c", device_cmd], 
+                                        capture_output=True, text=True, check=False)
+            gpu_name = device_check.stdout.strip() if device_check.returncode == 0 else "unknown device"
+            
+            print_success(f"GPU Acceleration - Available ({gpu_name})")
+            gpu_available = True
+            
+            # Check which CUDA version PyTorch is using
+            cuda_ver_cmd = "import torch; print(torch.version.cuda)"
+            cuda_ver_check = subprocess.run([python_path, "-c", cuda_ver_cmd], 
+                                         capture_output=True, text=True, check=False)
+            if cuda_ver_check.returncode == 0:
+                cuda_ver = cuda_ver_check.stdout.strip()
+                print_success(f"PyTorch is using CUDA version: {cuda_ver}")
+        else:
+            print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")
+    except Exception as e:
+        print_warning(f"GPU Acceleration - Could not verify: {e}")
+    
+    # Return overall success status
+    if all_successful:
+        print_success("All core dependencies were installed successfully")
+    else:
+        print_error("Some dependencies failed to install correctly")
+        print_warning("Try manually installing the missing packages or check for errors")
+    
+    return all_successful, gpu_available
 
 def print_next_steps():
     """Print instructions for the next steps."""
@@ -244,26 +441,49 @@ def main():
     print(f"{BOLD}Starship Analyzer Setup{RESET}")
     print("="*60 + "\n")
     
-    # Execute setup steps
-    gpu_available = check_gpu_availability()
+    # Step 1: Create virtual environment
     venv_created = create_virtual_environment()
+    if not venv_created:
+        print_error("Failed to create virtual environment. Aborting setup.")
+        return
+    
+    # Step 2: Create required directories
     create_required_directories()
     
-    # Only continue with dependency installation if venv was created successfully
+    # Step 3: Check CUDA version before installing dependencies
+    cuda_version = check_cuda_version()
+    
+    # Step 4: Install dependencies with the detected CUDA version
     deps_installed = False
     if venv_created:
-        deps_installed = install_dependencies()
+        deps_installed = install_dependencies(cuda_version)
+        if not deps_installed:
+            print_error("Failed to install dependencies. Aborting setup.")
+            return
+    
+    # Get the python path for verification
+    if platform.system() == "Windows":
+        python_path = os.path.join("venv", "Scripts", "python.exe")
+    else:
+        python_path = os.path.join("venv", "bin", "python")
+    
+    # Step 5: Verify installations as a separate step
+    all_successful = False
+    gpu_available = False
+    if deps_installed:
+        all_successful, gpu_available = verify_installations(python_path)
     
     # Print summary
     print("\n" + "="*60)
     print(f"{BOLD}Setup Summary:{RESET}")
     print("="*60)
-    print(f"GPU Acceleration: {'✓' if gpu_available else '⚠ (CPU mode)'}")
     print(f"Virtual Environment: {'✓' if venv_created else '✗'}")
     print(f"Dependencies: {'✓' if deps_installed else '✗'}")
+    print(f"Verification: {'✓' if all_successful else '✗'}")
+    print(f"GPU Acceleration: {'✓' if gpu_available else '⚠ (CPU mode)'}")
     
     # Print next steps
-    if venv_created and deps_installed:
+    if venv_created and deps_installed and all_successful:
         print_next_steps()
     else:
         print_error("Setup completed with errors. Please fix the issues and try again.")
