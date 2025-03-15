@@ -1,8 +1,11 @@
-import os
 import re
-import pytesseract
+import easyocr
 import numpy as np
+import torch
 from typing import Dict, Tuple, Optional
+
+# Initialize the EasyOCR reader (doing it once globally for better performance)
+reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
 
 def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transformed: bool = False, debug: bool = False) -> Dict:
     """
@@ -17,21 +20,15 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     Returns:
         dict: A dictionary containing the extracted values.
     """
-    # Try normal OCR first, then fallback to single character mode if needed
     try:
-        # First attempt with normal page segmentation mode
-        # display_image(roi, "ROI")
-        text = pytesseract.image_to_string(roi)
+        # Use EasyOCR to extract text
+        # allowlist limits the characters that can be detected
+        results = reader.readtext(roi, detail=0, 
+                                 allowlist='0123456789T+-:')
         
-        # Check if result is empty or None
-        if not text or text.strip() == "":
-            if debug:
-                print("Normal OCR mode returned empty result, trying single character mode...")
-            
-            # Fallback to single character mode with restricted characters
-            custom_config = r'--psm 10 -c tessedit_char_whitelist="0123456789T+-:"'
-            text = pytesseract.image_to_string(roi, config=custom_config)
-            
+        # Join all detected text segments
+        text = ' '.join(results) if results else ""
+        
         if debug:
             print(f"Raw OCR result: {text}")
             

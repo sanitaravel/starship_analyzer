@@ -28,37 +28,33 @@ def print_error(message):
     """Print an error message."""
     print(f"{RED}✗ {message}{RESET}")
 
-def check_tesseract_installed():
+def check_gpu_availability():
     """
-    Check if Tesseract OCR is installed and accessible from the PATH.
+    Check if CUDA is available for GPU acceleration with EasyOCR.
     
     Returns:
-        bool: True if Tesseract is installed, False otherwise.
+        bool: True if GPU is available, False otherwise.
     """
-    print_step(1, "Checking if Tesseract OCR is installed")
+    print_step(1, "Checking GPU availability for EasyOCR")
+    
     try:
-        result = subprocess.run(["tesseract", "--version"], 
-                               capture_output=True, text=True, check=False)
-        
-        if result.returncode == 0:
-            version = result.stdout.split("\n")[0]
-            print_success(f"Tesseract is installed: {version}")
+        # Try to import torch and check CUDA availability
+        import torch
+        if torch.cuda.is_available():
+            gpu_name = torch.cuda.get_device_name(0)
+            print_success(f"GPU is available: {gpu_name}")
+            print_success(f"CUDA Version: {torch.version.cuda}")
             return True
         else:
-            print_error("Tesseract is installed but not working properly")
+            print_warning("CUDA is not available. EasyOCR will run on CPU mode (slower).")
+            print_warning("To use GPU acceleration, ensure you have a compatible NVIDIA GPU and CUDA installed.")
             return False
-            
-    except FileNotFoundError:
-        print_error("Tesseract is not installed or not in PATH")
-        print_warning("Please install Tesseract OCR from: https://github.com/tesseract-ocr/tesseract")
-        
-        if platform.system() == "Windows":
-            print_warning("Windows users: Download from https://github.com/UB-Mannheim/tesseract/wiki")
-        elif platform.system() == "Darwin":  # macOS
-            print_warning("macOS users: Install with 'brew install tesseract'")
-        else:  # Linux
-            print_warning("Linux users: Install with 'sudo apt install tesseract-ocr'")
-            
+    except ImportError:
+        print_warning("PyTorch is not installed yet. GPU availability will be checked after dependencies installation.")
+        return False
+    except Exception as e:
+        print_warning(f"Error checking GPU availability: {e}")
+        print_warning("Will continue with CPU mode for EasyOCR.")
         return False
 
 def create_virtual_environment():
@@ -146,17 +142,69 @@ def install_dependencies():
         print_warning("Installing requirements into virtual environment... (this may take a while)")
         subprocess.run([python_path, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
         
-        # Verify installation
-        print_warning("Verifying installation...")
-        result = subprocess.run([python_path, "-c", "import numpy, cv2, pytesseract; print('Verification successful')"], 
-                               capture_output=True, text=True, check=False)
+        # Verify each important dependency individually
+        print_warning("Verifying installations...")
         
-        if result.returncode == 0:
-            print_success("All dependencies installed successfully")
+        # List of core dependencies to verify
+        dependencies = [
+            ("numpy", "NumPy (array processing)"),
+            ("cv2", "OpenCV (image processing)"),
+            ("torch", "PyTorch (deep learning)"),
+            ("easyocr", "EasyOCR (optical character recognition)")
+        ]
+        
+        all_successful = True
+        for module_name, description in dependencies:
+            try:
+                # Try to import the module
+                cmd = f"import {module_name}; print('Success')"
+                result = subprocess.run([python_path, "-c", cmd], 
+                                      capture_output=True, text=True, check=False)
+                
+                if "Success" in result.stdout:
+                    # Get version if successful
+                    version_cmd = (
+                        f"import {module_name}; " 
+                        f"print(getattr({module_name}, '__version__', 'unknown version'))"
+                    )
+                    version_result = subprocess.run([python_path, "-c", version_cmd], 
+                                                  capture_output=True, text=True, check=False)
+                    version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown version"
+                    
+                    print_success(f"{description} - Installed ({version})")
+                else:
+                    print_error(f"{description} - Failed to import")
+                    all_successful = False
+                    print_warning(f"Error: {result.stderr.strip()}")
+            except Exception as e:
+                print_error(f"{description} - Error during verification: {e}")
+                all_successful = False
+        
+        # Special check for GPU support
+        try:
+            gpu_cmd = "import torch; print(torch.cuda.is_available())"
+            gpu_check = subprocess.run([python_path, "-c", gpu_cmd], 
+                                      capture_output=True, text=True, check=True)
+            
+            if "True" in gpu_check.stdout:
+                device_cmd = "import torch; print(torch.cuda.get_device_name(0))"
+                device_check = subprocess.run([python_path, "-c", device_cmd], 
+                                            capture_output=True, text=True, check=False)
+                gpu_name = device_check.stdout.strip() if device_check.returncode == 0 else "unknown device"
+                
+                print_success(f"GPU Acceleration - Available ({gpu_name})")
+            else:
+                print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")
+        except Exception as e:
+            print_warning(f"GPU Acceleration - Could not verify: {e}")
+        
+        # Return overall success status
+        if all_successful:
+            print_success("All core dependencies were installed successfully")
             return True
         else:
-            print_error("Dependency verification failed")
-            print_warning("Some packages may not have installed correctly")
+            print_error("Some dependencies failed to install correctly")
+            print_warning("Try manually installing the missing packages or check for errors")
             return False
             
     except subprocess.CalledProcessError as e:
@@ -197,7 +245,7 @@ def main():
     print("="*60 + "\n")
     
     # Execute setup steps
-    tesseract_installed = check_tesseract_installed()
+    gpu_available = check_gpu_availability()
     venv_created = create_virtual_environment()
     create_required_directories()
     
@@ -210,12 +258,9 @@ def main():
     print("\n" + "="*60)
     print(f"{BOLD}Setup Summary:{RESET}")
     print("="*60)
-    print(f"Tesseract OCR: {'✓' if tesseract_installed else '✗'}")
+    print(f"GPU Acceleration: {'✓' if gpu_available else '⚠ (CPU mode)'}")
     print(f"Virtual Environment: {'✓' if venv_created else '✗'}")
     print(f"Dependencies: {'✓' if deps_installed else '✗'}")
-    
-    if not tesseract_installed:
-        print_warning("Tesseract is required but not installed. Please install it and try again.")
     
     # Print next steps
     if venv_created and deps_installed:
