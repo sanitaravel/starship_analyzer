@@ -1,11 +1,17 @@
 import cv2
 import json
 import os
+import multiprocessing
 from typing import List, Dict, Optional
 import numpy as np
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from ocr import extract_data
+
+# Set the start method to 'spawn' to avoid CUDA re-initialization issues
+# This must be done at the module level before creating any ProcessPoolExecutor
+if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn', force=True)
 
 
 def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debug: bool, zero_time_met: bool) -> Dict:
@@ -73,6 +79,14 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         max_frames (int, optional): The maximum number of frames to process. Defaults to None.
         batch_size (int): The number of frames to process in each batch.
     """
+    # Set multiprocessing start method to 'spawn' when running within this function
+    if multiprocessing.get_start_method() != 'spawn':
+        try:
+            multiprocessing.set_start_method('spawn', force=True)
+        except RuntimeError:
+            print("Warning: Could not set multiprocessing start method to 'spawn'")
+            print("This may cause CUDA issues in subprocesses")
+    
     cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)

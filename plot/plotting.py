@@ -7,6 +7,9 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from .data_processing import load_and_clean_data, compute_acceleration
 from utils import extract_launch_number
 
+# Set seaborn style globally for all plots
+sns.set_theme(style="whitegrid", context="talk", palette="colorblind", font_scale=1.1)
+
 # Global constant for converting m/s² to G-forces
 G_FORCE_CONVERSION = 9.81  # 1G = 9.81 m/s²
 
@@ -101,7 +104,7 @@ PLOT_MULTIPLE_LAUNCHES_PARAMS = [
 
 def create_engine_timeline_plot(df: pd.DataFrame, folder: str, title: str = "Engine Activity Timeline", show_figures: bool = True):
     """
-    Create a specialized plot showing engine activity over time.
+    Create a specialized plot showing engine activity over time using seaborn.
     
     Args:
         df (pd.DataFrame): DataFrame with processed engine data
@@ -110,33 +113,33 @@ def create_engine_timeline_plot(df: pd.DataFrame, folder: str, title: str = "Eng
         show_figures (bool): Whether to display the figures
     """
     # Create figure
-    plt.figure(figsize=(16, 9))
-    
-    # Set up a grid of subplots - 2 rows (Superheavy & Starship)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
     
-    # Plot Superheavy engine data using raw counts
-    ax1.plot(df['real_time'], df['superheavy_central_active'], 'ro-', label='Central Stack (max 3)', alpha=0.4)
-    ax1.plot(df['real_time'], df['superheavy_inner_active'], 'go-', label='Inner Ring (max 10)', alpha=0.4)
-    ax1.plot(df['real_time'], df['superheavy_outer_active'], 'bo-', label='Outer Ring (max 20)', alpha=0.4)
-    ax1.plot(df['real_time'], df['superheavy_all_active'], 'ko-', label='All Engines (max 33)', linewidth=2)
+    # Plot Superheavy engine data using raw counts with seaborn
+    sns.lineplot(x='real_time', y='superheavy_central_active', data=df, 
+                 label='Central Stack (max 3)', ax=ax1, marker='o', alpha=0.6, color='red')
+    sns.lineplot(x='real_time', y='superheavy_inner_active', data=df, 
+                 label='Inner Ring (max 10)', ax=ax1, marker='o', alpha=0.6, color='green')
+    sns.lineplot(x='real_time', y='superheavy_outer_active', data=df, 
+                 label='Outer Ring (max 20)', ax=ax1, marker='o', alpha=0.6, color='blue')
+    sns.lineplot(x='real_time', y='superheavy_all_active', data=df, 
+                 label='All Engines (max 33)', ax=ax1, marker='o', linewidth=2.5, color='black')
     
     ax1.set_title('Superheavy Engine Activity')
     ax1.set_ylabel('Active Engines (count)')
-    ax1.grid(True)
-    ax1.legend()
     ax1.set_ylim(0, 35)  # Set y-axis limit to slightly above max engine count (33)
     
-    # Plot Starship engine data using raw counts
-    ax2.plot(df['real_time'], df['starship_rearth_active'], 'ro-', label='Raptor Earth (max 3)', alpha=0.4)
-    ax2.plot(df['real_time'], df['starship_rvac_active'], 'go-', label='Raptor Vacuum (max 3)', alpha=0.4)
-    ax2.plot(df['real_time'], df['starship_all_active'], 'ko-', label='All Engines (max 6)', linewidth=2)
+    # Plot Starship engine data using raw counts with seaborn
+    sns.lineplot(x='real_time', y='starship_rearth_active', data=df, 
+                 label='Raptor Earth (max 3)', ax=ax2, marker='o', alpha=0.6, color='red')
+    sns.lineplot(x='real_time', y='starship_rvac_active', data=df, 
+                 label='Raptor Vacuum (max 3)', ax=ax2, marker='o', alpha=0.6, color='green')
+    sns.lineplot(x='real_time', y='starship_all_active', data=df, 
+                 label='All Engines (max 6)', ax=ax2, marker='o', linewidth=2.5, color='black')
     
     ax2.set_title('Starship Engine Activity')
     ax2.set_xlabel('Real Time (s)')
     ax2.set_ylabel('Active Engines (count)')
-    ax2.grid(True)
-    ax2.legend()
     ax2.set_ylim(0, 7)  # Set y-axis limit to slightly above max engine count (6)
     
     # Add overall title
@@ -145,7 +148,7 @@ def create_engine_timeline_plot(df: pd.DataFrame, folder: str, title: str = "Eng
     
     # Save figure
     os.makedirs(folder, exist_ok=True)
-    plt.savefig(f"{folder}/engine_timeline.png")
+    plt.savefig(f"{folder}/engine_timeline.png", dpi=300, bbox_inches='tight')
     
     if show_figures:
         plt.show()
@@ -155,7 +158,7 @@ def create_engine_timeline_plot(df: pd.DataFrame, folder: str, title: str = "Eng
 
 def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: str, label: str, x_axis: str, y_axis: str, folder: str, show_figures: bool) -> None:
     """
-    Create and save a scatter plot for the original and smoothed data.
+    Create and save a scatter plot for the original and smoothed data using seaborn.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
@@ -171,10 +174,12 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
     # Create plots directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
 
+    # Create figure with seaborn styling
     plt.figure(figsize=(16, 9))
     
-    # Create scatter plot with increased transparency
-    sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw Data)", s=4, alpha=0.2)
+    # Create scatter plot with seaborn
+    scatter_plot = sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw Data)", 
+                                  s=30, alpha=0.3, edgecolor=None)
     
     # Add trendline for acceleration and g-force plots
     if 'acceleration' in y or 'g_force' in y:
@@ -182,30 +187,29 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
         valid_data = df[[x, y]].dropna()
         
         if len(valid_data) > 10:  # Only add trendline if we have enough data points
-            # Use LOWESS to create a smooth trendline (adjust frac for different smoothing levels)
+            # Use LOWESS to create a smooth trendline
             z = lowess(valid_data[y], valid_data[x], frac=0.01)
-            plt.plot(z[:, 0], z[:, 1], 'r-', linewidth=2, label=f"{label} (Trend)")
             
-    # Add NASA's 3G limit line for G-force plots
+            # Add trendline with seaborn styling
+            plt.plot(z[:, 0], z[:, 1], color='crimson', linewidth=2.5, label=f"{label} (Trend)")
+            
+    # Add NASA's G limit lines for G-force plots
     if 'g_force' in y:
         plt.axhline(y=4.5, color='red', linestyle='--', linewidth=2, 
                     label="NASA's 4.5G Maximum Sustained Acceleration Limit")
-        plt.axhline(y=-4.5, color='red', linestyle='--', linewidth=2, 
-                    label="NASA's -4.5G Maximum Sustained Acceleration Limit")
+        plt.axhline(y=-4.5, color='red', linestyle='--', linewidth=2)
     
-    plt.xlabel(x_axis if x_axis else x.capitalize())
-    plt.ylabel(y_axis if y_axis else y.capitalize())
-    plt.title(title)
+    # Set labels with seaborn styling
+    plt.xlabel(x_axis if x_axis else x.capitalize(), fontsize=12)
+    plt.ylabel(y_axis if y_axis else y.capitalize(), fontsize=12)
+    plt.title(title, fontsize=14, fontweight='bold')
     
-    # Create a custom legend with more visible scatter points
-    handles, labels = plt.gca().get_legend_handles_labels()
-    for handle in handles:
-        if not isinstance(handle, plt.Line2D):  # This is a scatter point
-            handle.set_alpha(1.0)     # Make it fully opaque
+    # Add legend with improved visibility
+    plt.legend(frameon=True, fontsize=10)
     
-    plt.legend(handles=handles, labels=labels)
-    plt.grid(True)
-    plt.savefig(f"{folder}/{filename}")
+    # Save with high quality
+    plt.savefig(f"{folder}/{filename}", dpi=300, bbox_inches='tight')
+    
     if show_figures:
         plt.show()
     else:
@@ -223,51 +227,50 @@ def create_engine_performance_correlation(df: pd.DataFrame,
                                          filename: str = 'engine_speed_correlation.png',
                                          folder: str = 'results',
                                          cmap: str = 'viridis',
-                                         alpha: float = 0.5,
-                                         point_size: int = 10,
+                                         alpha: float = 0.7,
+                                         point_size: int = 50,
                                          show_figures: bool = True) -> None:
     """
-    Create a plot showing correlation between engine activity and vehicle performance.
-    
-    Args:
-        df (pd.DataFrame): DataFrame with processed engine data
-        x_col (str): Column name for x-axis data (default: 'real_time')
-        y_col (str): Column name for y-axis data (default: 'superheavy.speed')
-        color_col (str): Column name for color data (default: 'superheavy_all_active')
-        title (str): Plot title
-        x_label (str): X-axis label
-        y_label (str): Y-axis label
-        color_label (str): Colorbar label
-        filename (str): Filename for saving the plot
-        folder (str): Folder to save the plot
-        cmap (str): Colormap name for the scatter plot
-        alpha (float): Alpha transparency for scatter points
-        point_size (int): Size of scatter points
-        show_figures (bool): Whether to display the figure
+    Create a plot showing correlation between engine activity and vehicle performance using seaborn.
     """
-    # Create figure
+    # Create figure with seaborn styling
     plt.figure(figsize=(16, 9))
     
-    # Set up scatter plot with engine activity as color
-    scatter = plt.scatter(df[x_col], df[y_col], 
-                          c=df[color_col], 
-                          cmap=cmap, 
-                          alpha=alpha,
-                          s=point_size)
+    # Create advanced scatter plot with seaborn
+    scatter = sns.scatterplot(
+        x=x_col, 
+        y=y_col, 
+        hue=color_col, 
+        size=color_col,
+        sizes=(20, 200),  # Range of point sizes
+        palette=cmap,     # Use colormap
+        alpha=alpha,      # Transparency
+        data=df           # Data source
+    )
     
-    # Add colorbar
-    cbar = plt.colorbar(scatter)
-    cbar.set_label(color_label)
+    # Add a legend with custom title
+    legend = scatter.legend(title=color_label, fontsize=10)
+    plt.setp(legend.get_title(), fontsize=12)
     
-    # Add labels and title
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.title(title)
-    plt.grid(True)
+    # Add labels and title with seaborn styling
+    plt.xlabel(x_label, fontsize=12)
+    plt.ylabel(y_label, fontsize=12)
+    plt.title(title, fontsize=14, fontweight='bold')
     
-    # Save figure
+    # Add smoothed trend line
+    try:
+        # Try to add a trend line if we have valid data
+        valid_data = df[[x_col, y_col]].dropna()
+        if len(valid_data) > 10:
+            sns.regplot(x=x_col, y=y_col, data=df, scatter=False, 
+                      line_kws={"color": "red", "alpha": 0.7, "lw": 2, "linestyle": "--"})
+    except:
+        # Skip trend line if there's an error
+        pass
+    
+    # Save figure with high quality
     os.makedirs(folder, exist_ok=True)
-    plt.savefig(f"{folder}/{filename}")
+    plt.savefig(f"{folder}/{filename}", dpi=300, bbox_inches='tight')
     
     if show_figures:
         plt.show()
@@ -364,7 +367,7 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
 def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: str, folder: str,
                            labels: list[str], x_axis: str = None, y_axis: str = None, show_figures:bool=True) -> None:
     """
-    Plot a comparison of multiple dataframes.
+    Plot a comparison of multiple dataframes using seaborn.
 
     Args:
         df_list (list): List of dataframes to compare.
@@ -378,51 +381,60 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
         y_axis (str): The label for the y-axis.
         show_figures (bool): Whether to show figures or just save them.
     """
+    # Create figure with seaborn styling
     plt.figure(figsize=(16, 9))
+    
+    # Custom color palette with distinct colors for each launch
+    palette = sns.color_palette("husl", len(df_list))
     
     # Plot each dataset with both scatter points and trendline
     for i, (df, label) in enumerate(zip(df_list, labels)):
-        # Get a unique color from the color cycle
-        color = plt.cm.tab10(i)
+        color = palette[i]
+        
+        # Add scatter plot with seaborn
+        scatter = sns.scatterplot(
+            x=x, 
+            y=y, 
+            data=df, 
+            label=f"{label} (Raw)", 
+            color=color, 
+            alpha=0.3, 
+            s=30
+        )
         
         # Add trendline for acceleration and g-force plots
         if 'acceleration' in y or 'g_force' in y:
-            # Create scatter plot with increased transparency
-            sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw)", s=4, alpha=0.2, color=color)
-            
             # Only use non-null values for the trendline
             valid_data = df[[x, y]].dropna()
             
             if len(valid_data) > 10:  # Only add trendline if we have enough data points
                 # Use LOWESS to create a smooth trendline
                 z = lowess(valid_data[y], valid_data[x], frac=0.01)
-                plt.plot(z[:, 0], z[:, 1], '-', linewidth=2, label=f"{label} (Trend)", color=color)
+                plt.plot(z[:, 0], z[:, 1], '-', linewidth=2.5, label=f"{label} (Trend)", color=color)
         else:
-            # Create scatter plot with increased transparency
-            sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw)", s=4, alpha=0.5, color=color)
+            # For non-acceleration plots, add a smoothed line
+            try:
+                sns.lineplot(x=x, y=y, data=df, color=color, label=f"{label} (Trend)")
+            except:
+                # Skip if there's an error
+                pass
     
-    # Add NASA's 3G limit line for G-force plots
+    # Add NASA's G limit line for G-force plots
     if 'g_force' in y:
         plt.axhline(y=3, color='red', linestyle='--', linewidth=2, 
                     label="NASA's 3G Maximum Sustained Acceleration Limit")
     
-    plt.xlabel(x_axis if x_axis else x.capitalize())
-    plt.ylabel(y_axis if y_axis else y.capitalize())
-    plt.title(title)
+    # Set labels with seaborn styling
+    plt.xlabel(x_axis if x_axis else x.capitalize(), fontsize=12)
+    plt.ylabel(y_axis if y_axis else y.capitalize(), fontsize=12)
+    plt.title(title, fontsize=14, fontweight='bold')
     
-    # Create a custom legend with more visible scatter points
-    handles, labels = plt.gca().get_legend_handles_labels()
-    for handle in handles:
-        if not isinstance(handle, plt.Line2D):  # This is a scatter point
-            handle.set_rasterized(8)  # Make the marker bigger in the legend
-            handle.set_alpha(1.0)     # Make it fully opaque
-            
-    print(handles, labels)
+    # Add legend with improved visibility
+    plt.legend(frameon=True, fontsize=10)
     
-    plt.legend(handles=handles, labels=labels)
-    plt.grid(True)
+    # Save figure with high quality
     os.makedirs(folder, exist_ok=True)
-    plt.savefig(os.path.join(folder, filename))
+    plt.savefig(os.path.join(folder, filename), dpi=300, bbox_inches='tight')
     
     if show_figures:
         plt.show()

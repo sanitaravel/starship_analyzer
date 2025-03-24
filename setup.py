@@ -242,7 +242,7 @@ def install_dependencies(cuda_version):
     Returns:
         bool: True if dependencies were installed successfully, False otherwise.
     """
-    print_step(4, "Installing dependencies into virtual environment")
+    print_step(6, "Installing dependencies into virtual environment")
     
     # Check if requirements.txt exists
     if not os.path.exists("requirements.txt"):
@@ -340,7 +340,7 @@ def verify_installations(python_path):
     Returns:
         tuple: (bool for success, bool for GPU available)
     """
-    print_step(5, "Verifying installations")
+    print_step(7, "Verifying installations")
     
     # List of core dependencies to verify
     dependencies = [
@@ -415,6 +415,56 @@ def verify_installations(python_path):
     
     return all_successful, gpu_available
 
+def install_cuda_toolkit():
+    """
+    Install the CUDA Toolkit if not already installed.
+    """
+    print_step(4, "Installing CUDA Toolkit")
+    if platform.system() == "Windows":
+        try:
+            print_warning("Downloading and installing CUDA Toolkit for Windows...")
+            url = "https://developer.nvidia.com/cuda-downloads"
+            print_warning(f"Please visit {url} to download and install the latest CUDA Toolkit.")
+        except Exception as e:
+            print_error(f"Failed to guide CUDA Toolkit installation: {e}")
+    elif platform.system() == "Linux":
+        try:
+            print_warning("Installing CUDA Toolkit for Linux...")
+            subprocess.run(["sudo", "apt-get", "update"], check=True)
+            subprocess.run(["sudo", "apt-get", "install", "-y", "nvidia-cuda-toolkit"], check=True)
+            print_success("CUDA Toolkit installed successfully")
+        except subprocess.CalledProcessError as e:
+            print_error(f"Failed to install CUDA Toolkit: {e}")
+        except Exception as e:
+            print_error(f"Unexpected error during CUDA Toolkit installation: {e}")
+    else:
+        print_warning("CUDA Toolkit installation is not supported on this platform.")
+
+def install_nvidia_drivers():
+    """
+    Install the latest NVIDIA drivers if not already installed.
+    """
+    print_step(5, "Installing NVIDIA drivers")
+    if platform.system() == "Windows":
+        try:
+            print_warning("Downloading and installing NVIDIA drivers for Windows...")
+            url = "https://www.nvidia.com/Download/index.aspx"
+            print_warning(f"Please visit {url} to download and install the latest NVIDIA drivers.")
+        except Exception as e:
+            print_error(f"Failed to guide NVIDIA driver installation: {e}")
+    elif platform.system() == "Linux":
+        try:
+            print_warning("Installing NVIDIA drivers for Linux...")
+            subprocess.run(["sudo", "apt-get", "update"], check=True)
+            subprocess.run(["sudo", "apt-get", "install", "-y", "nvidia-driver-470"], check=True)
+            print_success("NVIDIA drivers installed successfully")
+        except subprocess.CalledProcessError as e:
+            print_error(f"Failed to install NVIDIA drivers: {e}")
+        except Exception as e:
+            print_error(f"Unexpected error during NVIDIA driver installation: {e}")
+    else:
+        print_warning("NVIDIA driver installation is not supported on this platform.")
+
 def print_next_steps():
     """Print instructions for the next steps."""
     print("\n" + "="*60)
@@ -453,7 +503,13 @@ def main():
     # Step 3: Check CUDA version before installing dependencies
     cuda_version = check_cuda_version()
     
-    # Step 4: Install dependencies with the detected CUDA version
+    # Steps 4-5: Install CUDA Toolkit and NVIDIA drivers if necessary
+    if not cuda_version:
+        install_cuda_toolkit()
+        install_nvidia_drivers()
+        cuda_version = check_cuda_version()  # Recheck CUDA version after installation
+    
+    # Step 6: Install dependencies with the detected CUDA version
     deps_installed = False
     if venv_created:
         deps_installed = install_dependencies(cuda_version)
@@ -467,7 +523,7 @@ def main():
     else:
         python_path = os.path.join("venv", "bin", "python")
     
-    # Step 5: Verify installations as a separate step
+    # Step 7: Verify installations as a separate step
     all_successful = False
     gpu_available = False
     if deps_installed:

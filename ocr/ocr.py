@@ -4,8 +4,21 @@ import numpy as np
 import torch
 from typing import Dict, Tuple, Optional
 
-# Initialize the EasyOCR reader (doing it once globally for better performance)
-reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
+# Initialize EasyOCR only when needed, not at module level
+# This helps prevent CUDA initialization issues with multiprocessing
+reader = None
+
+def get_reader():
+    """
+    Get or initialize the EasyOCR reader.
+    
+    Returns:
+        easyocr.Reader: An initialized EasyOCR reader instance
+    """
+    global reader
+    if reader is None:
+        reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
+    return reader
 
 def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transformed: bool = False, debug: bool = False) -> Dict:
     """
@@ -21,9 +34,12 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         dict: A dictionary containing the extracted values.
     """
     try:
+        # Get the EasyOCR reader
+        ocr_reader = get_reader()
+        
         # Use EasyOCR to extract text
         # allowlist limits the characters that can be detected
-        results = reader.readtext(roi, detail=0, 
+        results = ocr_reader.readtext(roi, detail=0, 
                                  allowlist='0123456789T+-:')
         
         # Join all detected text segments
