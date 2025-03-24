@@ -15,7 +15,7 @@ def validate_json(data: list) -> bool:
         bool: True if the structure is valid, False otherwise.
     """
     required_keys = {"frame_number", "superheavy",
-                     "starship", "time", "real_time"}
+                     "starship", "time", "real_time_seconds"}
     for entry in data:
         if not required_keys.issubset(entry.keys()):
             return (False, entry)
@@ -136,7 +136,7 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
         # Process engine data
         df = process_engine_data(df)
         
-        # Drop time column as we're using real_time
+        # Drop time column as we're using real_time_seconds
         if 'time' in df.columns:
             df.drop(columns=["time"], inplace=True)
         
@@ -151,7 +151,7 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
                     df.drop(columns=[column], inplace=True)
                     
         # Sort by time
-        df.sort_values(by="real_time", inplace=True)
+        df.sort_values(by="real_time_seconds", inplace=True)
         
         # Clean data
         df = clean_dataframe(df)
@@ -196,7 +196,7 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: in
         speed_diff = speed_m_per_s.iloc[i + frame_distance] - speed_m_per_s.iloc[i]
         
         # Calculate time difference over the frame distance
-        time_diff = df['real_time'].iloc[i + frame_distance] - df['real_time'].iloc[i]
+        time_diff = df['real_time_seconds'].iloc[i + frame_distance] - df['real_time_seconds'].iloc[i]
         
         # Calculate acceleration if time difference is valid
         if time_diff > 0:
