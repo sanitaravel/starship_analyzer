@@ -100,21 +100,19 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         print(f"OCR error: {str(e)}")
         return {}
     
-    # Clean the OCR result
-    cleaned_text = clean_ocr_result(text)
-    
+    # Use the OCR result directly since we're already using an allowlist
     if debug:
-        print(f"Cleaned OCR result for {mode}: {cleaned_text}")
+        print(f"OCR result for {mode}: {text}")
     
     # Process according to mode
     if mode == "speed":
-        speed = extract_single_value(cleaned_text)
+        speed = extract_single_value(text)
         return {"value": speed}
     elif mode == "altitude":
-        altitude = extract_single_value(cleaned_text)
+        altitude = extract_single_value(text)
         return {"value": altitude}
     elif mode == "time":
-        time = extract_time(cleaned_text)
+        time = extract_time(text)
         return time if time else {}
     else:
         return {}
@@ -133,34 +131,6 @@ def extract_single_value(text: str) -> Optional[int]:
     if numbers:
         return int(numbers[0])
     return None
-
-def clean_ocr_result(text: str) -> str:
-    """
-    Clean the OCR result by removing unwanted characters.
-
-    Args:
-        text (str): The OCR result text.
-
-    Returns:
-        str: The cleaned text.
-    """
-    cleaned_text = re.sub(r'[^0-9\s+-:]', '', text)
-    return cleaned_text
-
-def extract_speed_and_altitude(text: str) -> Tuple[Optional[int], Optional[int]]:
-    """
-    Extract speed and altitude from the cleaned text.
-
-    Args:
-        text (str): The cleaned text.
-
-    Returns:
-        tuple: A tuple containing the extracted speed and altitude.
-    """
-    numbers = re.findall(r'\d+', text)
-    if len(numbers) >= 2:
-        return int(numbers[0]), int(numbers[1])
-    return None, None
 
 def extract_time(text: str) -> Optional[Dict[str, int]]:
     """

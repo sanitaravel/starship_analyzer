@@ -1,157 +1,194 @@
-# Starship Launch Data Extraction and Analysis
+# 🚀 Starship Analyzer
 
-This project extracts and analyzes telemetry data from SpaceX Starship launch videos. Using advanced Optical Character Recognition (OCR), the tool extracts speed, altitude, time data, and engine status from video frames and provides comprehensive tools for plotting and comparing the extracted data across different launches.
+![Starship Launch](https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![License](https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge)
 
-## Features
+A powerful Python tool for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch videos using advanced computer vision and OCR techniques.
 
-- **Automated Data Extraction**: Extract telemetry data from individual images or video frames
-- **Engine Status Detection**: Track which engines are active during flight
-- **Data Visualization**: Generate detailed plots of speed, altitude, acceleration, and G-forces
-- **Multi-launch Comparison**: Compare telemetry data between different Starship launches
-- **Interactive UI**: User-friendly menu-driven interface
-- **Data Cleaning**: Intelligent filtering and validation of extracted data
+- [🚀 Starship Analyzer](#-starship-analyzer)
+  - [📊 What is Starship Analyzer?](#-what-is-starship-analyzer)
+  - [✨ Key Features](#-key-features)
+  - [🛠️ Installation](#️-installation)
+    - [Prerequisites](#prerequisites)
+    - [Quick Start](#quick-start)
+  - [📋 Usage Guide](#-usage-guide)
+    - [Getting Started](#getting-started)
+    - [Workflow](#workflow)
+    - [Available Commands](#available-commands)
+  - [🔍 How It Works](#-how-it-works)
+  - [📂 Project Structure](#-project-structure)
+  - [📊 Example Outputs](#-example-outputs)
+  - [🚀 Performance Tips](#-performance-tips)
+  - [👥 Contributing](#-contributing)
+  - [📄 License](#-license)
+  - [📚 Citation](#-citation)
+  - [📧 Contact](#-contact)
 
-## Project Structure
+## 📊 What is Starship Analyzer?
 
-```text
-starship_analyzer/
-├── README.md
-├── LICENSE
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── setup.py
-├── main.py
-├── utils.py
-├── ocr/
-│   ├── __init__.py
-│   ├── extract_data.py
-│   ├── engine_detection.py
-│   └── ocr.py
-├── plot/
-│   ├── __init__.py
-│   ├── data_processing.py
-│   └── plotting.py
-├── processing/
-│   ├── __init__.py
-│   ├── frame_processing.py
-│   └── video_processing.py
-└── results/
-    └── launch_X/
-        └── results.json
-```
+Starship Analyzer automatically extracts critical flight data from SpaceX's Starship launch webcasts, including:
 
-## Installation
+- Speed and altitude measurements
+- Engine ignition status and patterns
+- Precise timestamps and synchronization
+- Acceleration and G-force calculations
 
-1. **Prerequisites**:
-   - Python 3.8 or higher
-   - Tesseract OCR installed ([Installation guide](https://github.com/tesseract-ocr/tesseract))
+The tool processes video frames in parallel, cleans the extracted data, and generates comprehensive visualizations to help you understand the performance characteristics of each launch.
 
-2. **Clone the repository**:
+## ✨ Key Features
 
-   ```sh
+- **Advanced Telemetry Extraction**: Robust OCR system optimized for SpaceX's telemetry overlay
+- **Engine Status Detection**: Real-time tracking of individual engine ignition states
+- **Performance Analysis**: Calculates derived metrics like acceleration and G-forces
+- **Multi-launch Comparison**: Compare performance metrics across different Starship test flights
+- **Interactive Visualizations**: Generate publication-quality graphs and plots
+- **Parallel Processing**: Efficiently processes video frames using multi-core architecture
+- **User-friendly CLI**: Simple menu-driven interface with no programming knowledge required
+
+## 🛠️ Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- NVIDIA GPU with CUDA support (recommended but optional)
+- 8GB+ RAM recommended for processing high-resolution videos
+
+### Quick Start
+
+1. **Clone the repository**
+
+   ```bash
    git clone https://github.com/sanitaravel/starship_analyzer.git
    cd starship_analyzer
    ```
 
-3. **Set up the virtual environment and install dependencies**:
+2. **Run the setup script**
 
-   ```sh
+   ```bash
    python setup.py
    ```
 
-## Usage
+   This will:
+   - Create a virtual environment
+   - Detect CUDA availability
+   - Install the right PyTorch version for your system
+   - Set up all dependencies
 
-### Running the Application
+3. **Activate the virtual environment**
+   - Windows: `venv\Scripts\activate`
+   - macOS/Linux: `source venv/bin/activate`
 
-Launch the application with:
+## 📋 Usage Guide
 
-```sh
-python main.py
-```
+### Getting Started
+
+1. Place your Starship launch videos in the `flight_recordings` folder
+2. Run the application:
+
+   ```bash
+   python main.py
+   ```
+
+3. Follow the interactive menu to process videos and generate analyses
 
 ### Workflow
 
-1. Place flight videos in the `flight_recordings` folder
-2. Use the menu to process frames or entire videos
-3. View results in real-time or analyze saved data
-4. Compare multiple launches for comprehensive analysis
+```text
+Flight Recording → Frame Processing → Data Extraction → Analysis → Visualization
+```
 
-### Menu Options
+1. **Input**: Add SpaceX webcast recordings to the `flight_recordings` directory
+2. **Processing**: Extract telemetry data through parallel frame processing
+3. **Analysis**: Clean data, calculate derived metrics, and detect patterns
+4. **Output**: Generate visualizations and comparison plots in the `results` directory
 
-1. **Process a single image**: Extract telemetry data from a specific image.
-2. **Extract data from a random frame**: Get telemetry from a random frame within a specified timeframe.
-3. **Extract data from a specified frame**: Process data from a specific frame number.
-4. **Extract data from a user-specified frame**: Interactively select a frame to analyze.
-5. **Process entire video**: Extract telemetry from all frames in a video.
-6. **Analyze flight data**: Generate plots and visualizations from saved results.
-7. **Compare multiple launches**: Create comparative visualizations between different flights.
-8. **Exit**: Quit the application.
+### Available Commands
 
-## Modules
+The interactive menu offers several options:
 
-### ocr
+- **Process random video frame**: Test extraction on a single frame
+- **Process complete video**: Extract data from all frames in a recording
+- **Visualize flight data**: Generate plots from processed launch data
+- **Visualize multiple launches**: Compare metrics across different flights
 
-Handles image processing and data extraction via OCR:
+## 🔍 How It Works
 
-- **extract_data.py**: Coordinates the extraction of telemetry data from image regions
-- **ocr.py**: Core OCR functionality for recognizing text in images
-- **engine_detection.py**: Detects active engines in Superheavy and Starship vehicles
+Starship Analyzer uses a multi-stage pipeline:
 
-### plot
+1. **Frame Extraction**: Video frames are extracted and queued for processing
+2. **OCR Processing**: Specialized regions of interest (ROIs) are analyzed to extract telemetry
+3. **Engine Detection**: Computer vision techniques identify active engines
+4. **Data Cleaning**: Statistical methods remove outliers and noise
+5. **Analysis**: Calculates acceleration, G-forces, and performance metrics
+6. **Visualization**: Generates plots showing vehicle performance and engine status
 
-Manages data cleaning, processing and visualization:
-
-- **data_processing.py**: Validates, cleans and processes telemetry data
-- **plotting.py**: Creates visualizations of speed, altitude, acceleration, and engine status
-
-### processing
-
-Handles video processing workflows:
-
-- **frame_processing.py**: Functions for processing individual video frames
-- **video_processing.py**: Parallel processing of video frames for efficient data extraction
-
-### utils.py
-
-Utility functions used across the project:
-
-- **display_image()**: Shows image data in a window for debugging
-- **extract_launch_number()**: Parses launch identifiers from file paths
-
-## Output
-
-The tool generates JSON data and visualizations including:
-
-- Speed vs. time plots
-- Altitude vs. time plots
-- Acceleration and G-force analysis
-- Engine activity timelines
-- Correlation plots between engine activity and vehicle performance
-
-## Contributing
-
-Contributions are welcome! Please feel free to:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License with Attribution Requirement. 
-
-This means you are free to use, modify, and distribute this software, but you must give appropriate credit to the original author, provide a link to the license, and indicate if changes were made.
-
-See the [LICENSE](LICENSE) file for the full license text.
-
-## Citation
-
-If you use this software in your project or research, please cite it as:
+## 📂 Project Structure
 
 ```text
-Starship Analyzer by Alexander Koshcheev
-GitHub: https://github.com/sanitaravel/starship_analyzer
+starship_analyzer/
+├── ocr/                # Optical Character Recognition subsystem
+├── plot/               # Data processing and visualization tools
+├── processing/         # Video and frame processing engine
+├── flight_recordings/  # Input directory for launch videos
+├── results/            # Output directory for processed data
+├── main.py             # Application entry point
+└── setup.py            # Installation and configuration script
 ```
+
+## 📊 Example Outputs
+
+The tool generates several types of visualizations:
+
+- **Telemetry Plots**: Speed and altitude over time
+- **Performance Analysis**: Acceleration and G-force profiles
+- **Engine Activity**: Timelines showing which engines are firing
+- **Correlation Analysis**: Relationship between engine patterns and vehicle performance
+- **Launch Comparisons**: Side-by-side analysis of different Starship flights
+
+## 🚀 Performance Tips
+
+- Processing high-resolution videos requires significant computing resources
+- GPU acceleration dramatically improves OCR processing speed
+- Adjust batch sizes in the menu for optimal performance on your system
+- For large videos, consider processing in multiple sessions
+
+## 👥 Contributing
+
+Contributions are welcome! To contribute:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+Please ensure your code follows the project's style guidelines and includes appropriate tests.
+
+## 📄 License
+
+This project is licensed under the MIT License with Attribution Requirement.
+
+You may freely use and modify this software, provided you:
+
+- Include the original copyright notice
+- Provide attribution to the original author
+- Indicate if changes were made
+
+See the [LICENSE](LICENSE) file for complete details.
+
+## 📚 Citation
+
+If you use this software in academic or research contexts, please cite it as:
+
+```text
+Koshcheev, A. (2025). Starship Analyzer: Telemetry extraction and analysis 
+tool for SpaceX Starship launches. GitHub. 
+https://github.com/sanitaravel/starship_analyzer
+```
+
+## 📧 Contact
+
+Alexander Koshcheev - [GitHub Profile](https://github.com/sanitaravel)
+
+Project Link: [https://github.com/sanitaravel/starship_analyzer](https://github.com/sanitaravel/starship_analyzer)

@@ -104,61 +104,86 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
         return [{"frame_number": fn, "error": str(e)} for fn in batch]
 
 
-def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 10) -> None:
+def validate_video(video_path: str) -> bool:
     """
-    Iterate through all frames in a video and extract data.
+    Validate that the video file exists and can be opened.
 
     Args:
         video_path (str): The path to the video file.
-        launch_number (int): The launch number for saving results.
-        display_rois (bool): Whether to display the ROIs.
-        debug (bool): Whether to enable debug prints.
-        max_frames (int, optional): The maximum number of frames to process. Defaults to None.
-        batch_size (int): The number of frames to process in each batch.
-    """
-    # Ensure spawn method is used
-    if multiprocessing.get_start_method() != 'spawn':
-        try:
-            multiprocessing.set_start_method('spawn', force=True)
-        except RuntimeError:
-            print("Warning: Could not set multiprocessing start method to 'spawn'")
-            print("Processing will continue with current method, but may encounter CUDA issues")
 
-    # Verify video file exists
+    Returns:
+        bool: True if video is valid, False otherwise.
+    """
     if not os.path.exists(video_path):
         print(f"Error: Video file not found at {video_path}")
-        return
+        return False
 
-    # Open video file and get properties
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f"Error: Failed to open video file at {video_path}")
-        return
-        
+        return False
+    
+    cap.release()
+    return True
+
+
+def get_video_properties(video_path: str, max_frames: Optional[int] = None) -> tuple:
+    """
+    Get video properties like frame count and FPS.
+
+    Args:
+        video_path (str): The path to the video file.
+        max_frames (int, optional): The maximum number of frames to process.
+
+    Returns:
+        tuple: (frame_count, fps)
+    """
+    cap = cv2.VideoCapture(video_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
     cap.release()
 
-    results: List[Dict] = []
-    zero_time_frame: Optional[int] = None
-    zero_time_met = False
-
     if max_frames is not None:
         frame_count = min(frame_count, max_frames)
+        
+    return frame_count, fps
 
-    print(f"Processing {frame_count} frames from video at {fps} fps")
-    
-    # Create batches
+
+def create_batches(frame_count: int, batch_size: int) -> List[List[int]]:
+    """
+    Create batches of frame numbers.
+
+    Args:
+        frame_count (int): The total number of frames.
+        batch_size (int): The size of each batch.
+
+    Returns:
+        List[List[int]]: A list of batches, where each batch is a list of frame numbers.
+    """
     frame_numbers = list(range(frame_count))
-    batches = [frame_numbers[i:i + batch_size]
-               for i in range(0, len(frame_numbers), batch_size)]
-    
-    print(f"Created {len(batches)} batches of size {batch_size}")
+    return [frame_numbers[i:i + batch_size] for i in range(0, len(frame_numbers), batch_size)]
 
+
+def process_video_frames(batches: List[List[int]], video_path: str, display_rois: bool, debug: bool) -> tuple:
+    """
+    Process all batches of frames.
+
+    Args:
+        batches (List[List[int]]): The batches of frame numbers.
+        video_path (str): The path to the video file.
+        display_rois (bool): Whether to display the ROIs.
+        debug (bool): Whether to enable debug prints.
+
+    Returns:
+        tuple: (results, zero_time_frame)
+    """
     # Limit the number of workers based on available CPU cores
-    # Using fewer workers can help avoid CUDA memory issues
     num_cores = min(os.cpu_count() or 4, 4)  # Limit to 4 cores max to avoid CUDA issues
     print(f"Using {num_cores} worker processes for parallel processing")
+
+    results = []
+    zero_time_met = False
+    zero_time_frame = None
 
     # Process batches with better error handling
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
@@ -176,26 +201,41 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
                 results.extend(batch_results)
                 
                 # Check for zero time frame
-                if not zero_time_met:
+                if zero_time_frame is None:
                     for frame_result in batch_results:
                         if frame_result.get("time") and frame_result["time"].get('hours') == 0 and \
                            frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
                             zero_time_frame = frame_result["frame_number"]
-                            zero_time_met = True
                             print(f"Found zero time frame at frame {zero_time_frame}")
+                            break
             except Exception as e:
                 print(f"Error processing batch: {str(e)}")
                 print(traceback.format_exc())
 
-    print(f"Processing complete. Analyzed {len(results)} frames successfully.")
-    
-    # Calculate real time for each frame
+    return results, zero_time_frame
+
+
+def calculate_real_times(results: List[Dict], zero_time_frame: Optional[int], fps: float) -> List[Dict]:
+    """
+    Calculate real time for each frame.
+
+    Args:
+        results (List[Dict]): The processing results.
+        zero_time_frame (Optional[int]): The frame number with time 0:0:0.
+        fps (float): The frames per second of the video.
+
+    Returns:
+        List[Dict]: The updated results with real time calculations.
+    """
+    if zero_time_frame is None:
+        return results
+        
     for frame_result in results:
         frame_number = frame_result["frame_number"]
         if "error" in frame_result:
             continue
             
-        if zero_time_frame is not None and "time" in frame_result:
+        if "time" in frame_result:
             seconds_from_zero = (frame_number - zero_time_frame) / fps
             frame_result["real_time_seconds"] = seconds_from_zero
             
@@ -211,10 +251,18 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
                 "seconds": seconds,
                 "milliseconds": milliseconds
             }
+    
+    return results
 
-    print(f"Time calculations complete.")
 
-    # Save results
+def save_results(results: List[Dict], launch_number: int) -> None:
+    """
+    Save the processing results to a file.
+
+    Args:
+        results (List[Dict]): The processing results.
+        launch_number (int): The launch number for saving results.
+    """
     folder_name = os.path.join("results", f"launch_{launch_number}")
     os.makedirs(folder_name, exist_ok=True)
 
@@ -234,3 +282,50 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
             print(f"Results saved to backup location: {backup_path}")
         except:
             print("Failed to save results to backup location as well")
+
+
+def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 40) -> None:
+    """
+    Iterate through all frames in a video and extract data.
+
+    Args:
+        video_path (str): The path to the video file.
+        launch_number (int): The launch number for saving results.
+        display_rois (bool): Whether to display the ROIs.
+        debug (bool): Whether to enable debug prints.
+        max_frames (int, optional): The maximum number of frames to process. Defaults to None.
+        batch_size (int): The number of frames to process in each batch.
+    """
+    # Ensure spawn method is used
+    if multiprocessing.get_start_method() != 'spawn':
+        try:
+            multiprocessing.set_start_method('spawn', force=True)
+        except RuntimeError:
+            print("Warning: Could not set multiprocessing start method to 'spawn'")
+            print("Processing will continue with current method, but may encounter CUDA issues")
+
+    # Validate video file
+    if not validate_video(video_path):
+        return
+
+    # Get video properties
+    frame_count, fps = get_video_properties(video_path, max_frames)
+    print(f"Processing {frame_count} frames from video at {fps} fps")
+    
+    # Create batches
+    batches = create_batches(frame_count, batch_size)
+    print(f"Created {len(batches)} batches of size {batch_size}")
+
+    # Process video frames
+    results, zero_time_frame = process_video_frames(batches, video_path, display_rois, debug)
+    print(f"Processing complete. Analyzed {len(results)} frames successfully.")
+    
+    if zero_time_frame:
+        print(f"Zero time frame identified at frame {zero_time_frame}")
+    
+    # Calculate real time for each frame
+    results = calculate_real_times(results, zero_time_frame, fps)
+    print(f"Time calculations complete.")
+
+    # Save results
+    save_results(results, launch_number)

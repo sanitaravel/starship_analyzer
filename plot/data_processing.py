@@ -1,7 +1,7 @@
 import json
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
+from constants import G_FORCE_CONVERSION
 
 
 def validate_json(data: list) -> bool:
@@ -211,3 +211,16 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: in
     
     # The last frame_distance frames will have NaN acceleration
     return acceleration
+
+
+def compute_g_force(acceleration_ms2: pd.Series) -> pd.Series:
+    """
+    Convert acceleration in m/s² to G-forces.
+    
+    Args:
+        acceleration_ms2 (pd.Series): Acceleration values in m/s²
+        
+    Returns:
+        pd.Series: G-force values (1G = 9.81 m/s²)
+    """
+    return acceleration_ms2 / G_FORCE_CONVERSION
