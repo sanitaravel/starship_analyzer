@@ -90,11 +90,11 @@ def process_complete_video():
         inquirer.Text('launch_number', message="Launch number",
                     validate=validate_number),
         inquirer.Text('batch_size', 
-                     message="Batch size for processing (default: 40)", 
+                     message="Batch size for processing (default: 10)", 
                      validate=validate_positive_number),
     ]
     answers = inquirer.prompt(questions)
-    batch_size = int(answers['batch_size']) if answers['batch_size'] else 40
+    batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
     iterate_through_frames(
         answers['video_path'], int(answers['launch_number']), batch_size=batch_size)
     return True

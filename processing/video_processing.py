@@ -284,7 +284,7 @@ def save_results(results: List[Dict], launch_number: int) -> None:
             print("Failed to save results to backup location as well")
 
 
-def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 40) -> None:
+def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 10) -> None:
     """
     Iterate through all frames in a video and extract data.
 
