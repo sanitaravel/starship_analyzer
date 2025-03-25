@@ -8,13 +8,17 @@ import numpy as np
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from ocr import extract_data
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 # Set the start method to 'spawn' to avoid CUDA re-initialization issues
 if __name__ == "__main__":
     try:
         multiprocessing.set_start_method('spawn', force=True)
     except RuntimeError:
-        print("Warning: 'spawn' start method already set or couldn't be set")
+        logger.warning("'spawn' start method already set or couldn't be set")
 
 
 def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debug: bool, zero_time_met: bool) -> Dict:
@@ -42,7 +46,7 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
         }
         return frame_result
     except Exception as e:
-        print(f"Error processing frame {frame_number}: {str(e)}")
+        logger.error(f"Error processing frame {frame_number}: {str(e)}")
         # Return a minimal result to avoid breaking the pipeline
         return {
             "frame_number": frame_number,
@@ -115,15 +119,16 @@ def validate_video(video_path: str) -> bool:
         bool: True if video is valid, False otherwise.
     """
     if not os.path.exists(video_path):
-        print(f"Error: Video file not found at {video_path}")
+        logger.error(f"Video file not found at {video_path}")
         return False
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error: Failed to open video file at {video_path}")
+        logger.error(f"Failed to open video file at {video_path}")
         return False
     
     cap.release()
+    logger.debug(f"Successfully validated video at {video_path}")
     return True
 
 
@@ -179,7 +184,7 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
     """
     # Limit the number of workers based on available CPU cores
     num_cores = min(os.cpu_count() or 4, 4)  # Limit to 4 cores max to avoid CUDA issues
-    print(f"Using {num_cores} worker processes for parallel processing")
+    logger.info(f"Using {num_cores} worker processes for parallel processing")
 
     results = []
     zero_time_met = False
@@ -206,11 +211,11 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
                         if frame_result.get("time") and frame_result["time"].get('hours') == 0 and \
                            frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
                             zero_time_frame = frame_result["frame_number"]
-                            print(f"Found zero time frame at frame {zero_time_frame}")
+                            logger.info(f"Found zero time frame at frame {zero_time_frame}")
                             break
             except Exception as e:
-                print(f"Error processing batch: {str(e)}")
-                print(traceback.format_exc())
+                logger.error(f"Error processing batch: {str(e)}")
+                logger.debug(traceback.format_exc())
 
     return results, zero_time_frame
 
@@ -270,18 +275,18 @@ def save_results(results: List[Dict], launch_number: int) -> None:
     try:
         with open(result_path, "w") as f:
             json.dump(results, f, indent=4)
-        print(f"Results saved to {result_path}")
+        logger.info(f"Results saved to {result_path}")
     except Exception as e:
-        print(f"Error saving results: {str(e)}")
+        logger.error(f"Error saving results: {str(e)}")
         
         # Try to save to a backup location
         backup_path = os.path.join("results", f"backup_results_{launch_number}.json")
         try:
             with open(backup_path, "w") as f:
                 json.dump(results, f, indent=4)
-            print(f"Results saved to backup location: {backup_path}")
-        except:
-            print("Failed to save results to backup location as well")
+            logger.info(f"Results saved to backup location: {backup_path}")
+        except Exception as backup_error:
+            logger.error(f"Failed to save results to backup location: {str(backup_error)}")
 
 
 def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 10) -> None:
@@ -296,36 +301,43 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         max_frames (int, optional): The maximum number of frames to process. Defaults to None.
         batch_size (int): The number of frames to process in each batch.
     """
+    logger.info(f"Starting video processing for launch {launch_number}")
+    logger.info(f"Video path: {video_path}, batch size: {batch_size}")
+    
     # Ensure spawn method is used
     if multiprocessing.get_start_method() != 'spawn':
         try:
             multiprocessing.set_start_method('spawn', force=True)
         except RuntimeError:
-            print("Warning: Could not set multiprocessing start method to 'spawn'")
-            print("Processing will continue with current method, but may encounter CUDA issues")
+            logger.warning("Could not set multiprocessing start method to 'spawn'")
+            logger.warning("Processing will continue with current method, but may encounter CUDA issues")
 
     # Validate video file
     if not validate_video(video_path):
+        logger.error("Video validation failed, aborting processing")
         return
 
     # Get video properties
     frame_count, fps = get_video_properties(video_path, max_frames)
-    print(f"Processing {frame_count} frames from video at {fps} fps")
+    logger.info(f"Processing {frame_count} frames from video at {fps} fps")
     
     # Create batches
     batches = create_batches(frame_count, batch_size)
-    print(f"Created {len(batches)} batches of size {batch_size}")
+    logger.info(f"Created {len(batches)} batches of size {batch_size}")
 
     # Process video frames
     results, zero_time_frame = process_video_frames(batches, video_path, display_rois, debug)
-    print(f"Processing complete. Analyzed {len(results)} frames successfully.")
+    logger.info(f"Processing complete. Analyzed {len(results)} frames successfully.")
     
     if zero_time_frame:
-        print(f"Zero time frame identified at frame {zero_time_frame}")
+        logger.info(f"Zero time frame identified at frame {zero_time_frame}")
+    else:
+        logger.warning("No zero time frame was identified. Time calculations may be inaccurate.")
     
     # Calculate real time for each frame
     results = calculate_real_times(results, zero_time_frame, fps)
-    print(f"Time calculations complete.")
+    logger.info(f"Time calculations complete.")
 
     # Save results
     save_results(results, launch_number)
+    logger.info(f"Video processing for launch {launch_number} completed successfully")

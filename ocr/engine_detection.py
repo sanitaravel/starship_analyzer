@@ -1,6 +1,10 @@
 import numpy as np
 from typing import Dict
 from constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_type: str) -> Dict:
     """
@@ -29,12 +33,12 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
                 is_on = all(channel >= WHITE_THRESHOLD for channel in pixel)
                 engine_status[section].append(is_on)
                 if debug:
-                    print(f"{engine_type} {section} engine {i+1}: {is_on} (pixel value: {pixel})")
+                    logger.debug(f"{engine_type} {section} engine {i+1}: {is_on} (pixel value: {pixel})")
             else:
                 # If coordinates are out of bounds, consider engine off
                 engine_status[section].append(False)
                 if debug:
-                    print(f"{engine_type} {section} engine {i+1}: Coordinates out of bounds")
+                    logger.warning(f"{engine_type} {section} engine {i+1}: Coordinates out of bounds")
                     
     return engine_status
 

@@ -5,6 +5,10 @@ import torch
 import os
 import threading
 from typing import Dict, Tuple, Optional
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 # Use thread-local storage to ensure each process has its own reader instance
 # This helps avoid sharing CUDA contexts across processes
@@ -20,7 +24,7 @@ def get_reader():
     if not hasattr(_thread_local, 'reader'):
         # Get process ID for debugging
         pid = os.getpid()
-        print(f"Process {pid}: Initializing EasyOCR reader")
+        logger.info(f"Process {pid}: Initializing EasyOCR reader")
         
         # Check if CUDA is available
         gpu_available = torch.cuda.is_available()
@@ -29,24 +33,24 @@ def get_reader():
             try:
                 torch.cuda.set_device(0)
                 device_name = torch.cuda.get_device_name(0)
-                print(f"Process {pid}: Using GPU: {device_name}")
+                logger.info(f"Process {pid}: Using GPU: {device_name}")
             except Exception as e:
-                print(f"Process {pid}: Error setting CUDA device: {e}")
+                logger.error(f"Process {pid}: Error setting CUDA device: {e}")
                 # Fall back to CPU if there's an issue with GPU
                 gpu_available = False
                 
         # Initialize the reader
         try:
             _thread_local.reader = easyocr.Reader(['en'], gpu=gpu_available, verbose=False)
-            print(f"Process {pid}: EasyOCR initialized {'with GPU' if gpu_available else 'on CPU'}")
+            logger.info(f"Process {pid}: EasyOCR initialized {'with GPU' if gpu_available else 'on CPU'}")
         except Exception as e:
-            print(f"Process {pid}: Failed to initialize EasyOCR with GPU, falling back to CPU: {e}")
+            logger.error(f"Process {pid}: Failed to initialize EasyOCR with GPU, falling back to CPU: {e}")
             # Fall back to CPU mode if GPU initialization fails
             try:
                 _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
-                print(f"Process {pid}: EasyOCR initialized on CPU (fallback)")
+                logger.info(f"Process {pid}: EasyOCR initialized on CPU (fallback)")
             except Exception as e2:
-                print(f"Process {pid}: Critical error initializing EasyOCR: {e2}")
+                logger.critical(f"Process {pid}: Critical error initializing EasyOCR: {e2}")
                 raise
     
     return _thread_local.reader
@@ -71,7 +75,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         # Guard against empty or invalid ROIs
         if roi is None or roi.size == 0 or roi.shape[0] == 0 or roi.shape[1] == 0:
             if debug:
-                print("Warning: Empty or invalid ROI provided to OCR")
+                logger.warning("Empty or invalid ROI provided to OCR")
             return {}
         
         # Use EasyOCR to extract text with appropriate parameters for each mode
@@ -84,7 +88,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         except RuntimeError as e:
             # Handle CUDA out-of-memory errors
             if "CUDA out of memory" in str(e):
-                print(f"CUDA out of memory error in OCR. Falling back to CPU.")
+                logger.warning(f"CUDA out of memory error in OCR. Falling back to CPU.")
                 # Try again with CPU
                 torch.cuda.empty_cache()  # Clear CUDA memory
                 _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
@@ -94,15 +98,15 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 raise
         
         if debug:
-            print(f"Raw OCR result for {mode}: {text}")
+            logger.debug(f"Raw OCR result for {mode}: {text}")
             
     except Exception as e:
-        print(f"OCR error: {str(e)}")
+        logger.error(f"OCR error: {str(e)}")
         return {}
     
     # Use the OCR result directly since we're already using an allowlist
     if debug:
-        print(f"OCR result for {mode}: {text}")
+        logger.debug(f"OCR result for {mode}: {text}")
     
     # Process according to mode
     if mode == "speed":
@@ -130,6 +134,7 @@ def extract_single_value(text: str) -> Optional[int]:
     numbers = re.findall(r'\d+', text)
     if numbers:
         return int(numbers[0])
+    logger.debug(f"No numeric value found in text: '{text}'")
     return None
 
 def extract_time(text: str) -> Optional[Dict[str, int]]:
@@ -148,4 +153,5 @@ def extract_time(text: str) -> Optional[Dict[str, int]]:
         sign = time_str[0]
         hours, minutes, seconds = map(int, time_str[1:].split(':'))
         return {"sign": sign, "hours": hours, "minutes": minutes, "seconds": seconds}
+    logger.debug(f"No time format found in text: '{text}'")
     return None

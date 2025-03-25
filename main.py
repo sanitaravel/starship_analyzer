@@ -3,6 +3,10 @@ from plot import plot_flight_data, compare_multiple_launches
 from processing import process_image, process_video_frame, process_frame, iterate_through_frames
 import os
 from inquirer import errors
+from logger import start_new_session, get_logger, set_global_log_level
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 def validate_number(_, current):
@@ -207,9 +211,19 @@ def main() -> None:
     """
     Main function to handle the step-by-step menu and run the appropriate function.
     """
-    while display_menu():
-        pass  # Continue looping until display_menu returns False
-
+    # Start a new logging session
+    start_new_session()
+    logger.info("Starting Starship Analyzer application")
+    
+    try:
+        while display_menu():
+            pass  # Continue looping until display_menu returns False
+        logger.info("Application exiting normally")
+    except Exception as e:
+        logger.exception(f"Unhandled exception: {str(e)}")
+        print(f"An error occurred: {str(e)}")
+    finally:
+        logger.info("Application shutdown complete")
 
 if __name__ == "__main__":
     main()

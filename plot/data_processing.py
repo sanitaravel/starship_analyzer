@@ -1,7 +1,12 @@
 import json
 import pandas as pd
+import traceback
 from tqdm import tqdm
 from constants import G_FORCE_CONVERSION
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 def validate_json(data: list) -> bool:
@@ -32,27 +37,60 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: The cleaned DataFrame.
     """
+    logger.info("Cleaning dataframe and removing outliers")
+    
     # Step 1: Ensure numeric values
     for column in ['starship.speed', 'superheavy.speed', 'starship.altitude', 'superheavy.altitude']:
         df[column] = pd.to_numeric(df[column], errors='coerce')
+        
+    # Log the number of NaN values after conversion
+    nan_counts = df[['starship.speed', 'superheavy.speed', 'starship.altitude', 'superheavy.altitude']].isna().sum()
+    logger.debug(f"NaN values after numeric conversion: {nan_counts.to_dict()}")
 
     # Step 2: Remove impossible values
+    prev_count = (~df['starship.speed'].isna()).sum()
     df['starship.speed'] = df['starship.speed'].clip(lower=0, upper=28000)
+    current_count = (~df['starship.speed'].isna()).sum()
+    logger.debug(f"Clipped {prev_count - current_count} impossible values from starship.speed")
+    
+    prev_count = (~df['superheavy.speed'].isna()).sum()
     df['superheavy.speed'] = df['superheavy.speed'].clip(lower=0, upper=6000)
+    current_count = (~df['superheavy.speed'].isna()).sum()
+    logger.debug(f"Clipped {prev_count - current_count} impossible values from superheavy.speed")
+    
+    prev_count = (~df['starship.altitude'].isna()).sum()
     df['starship.altitude'] = df['starship.altitude'].clip(lower=0, upper=200)
+    current_count = (~df['starship.altitude'].isna()).sum()
+    logger.debug(f"Clipped {prev_count - current_count} impossible values from starship.altitude")
+    
+    prev_count = (~df['superheavy.altitude'].isna()).sum()
     df['superheavy.altitude'] = df['superheavy.altitude'].clip(
         lower=0, upper=100)
+    current_count = (~df['superheavy.altitude'].isna()).sum()
+    logger.debug(f"Clipped {prev_count - current_count} impossible values from superheavy.altitude")
 
     # Step 3: Detect abrupt changes
     df['starship.speed_diff'] = df['starship.speed'].diff().abs()
+    abrupt_changes = (df['starship.speed_diff'] > 50).sum()
+    logger.debug(f"Detected {abrupt_changes} abrupt changes in starship.speed")
     df.loc[df['starship.speed_diff'] > 50, 'starship.speed'] = None
+    
     df['superheavy.speed_diff'] = df['superheavy.speed'].diff().abs()
+    abrupt_changes = (df['superheavy.speed_diff'] > 50).sum()
+    logger.debug(f"Detected {abrupt_changes} abrupt changes in superheavy.speed")
     df.loc[df['superheavy.speed_diff'] > 50, 'superheavy.speed'] = None
+    
     df['starship.altitude_diff'] = df['starship.altitude'].diff().abs()
+    abrupt_changes = (df['starship.altitude_diff'] > 1).sum()
+    logger.debug(f"Detected {abrupt_changes} abrupt changes in starship.altitude")
     df.loc[df['starship.altitude_diff'] > 1, 'starship.altitude'] = None
+    
     df['superheavy.altitude_diff'] = df['superheavy.altitude'].diff().abs()
+    abrupt_changes = (df['superheavy.altitude_diff'] > 1).sum()
+    logger.debug(f"Detected {abrupt_changes} abrupt changes in superheavy.altitude")
     df.loc[df['superheavy.altitude_diff'] > 1, 'superheavy.altitude'] = None
 
+    logger.info("DataFrame cleaning complete")
     return df
 
 
@@ -66,6 +104,8 @@ def process_engine_data(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame with processed engine data
     """
+    logger.info("Processing engine data")
+    
     # Create columns for engine counts
     df['superheavy_central_active'] = 0
     df['superheavy_central_total'] = 3
@@ -101,6 +141,7 @@ def process_engine_data(df: pd.DataFrame) -> pd.DataFrame:
                 df[dest_col] = df[src_col].apply(
                     lambda x: sum(1 for engine in x if engine) if isinstance(x, list) else 0
                 )
+                logger.debug(f"Processed {src_col} to {dest_col}")
                 
         # Calculate total active engines
         df['superheavy_all_active'] = (
@@ -119,19 +160,41 @@ def process_engine_data(df: pd.DataFrame) -> pd.DataFrame:
             if col in df.columns:
                 df = df.drop(columns=[col])
                 
+        logger.info("Engine data processed successfully")
+                
     except Exception as e:
-        print(f"Error processing engine data: {e}")
+        logger.error(f"Error processing engine data: {e}")
+        logger.debug(traceback.format_exc())
     
     return df
 
 
 def load_and_clean_data(json_path: str) -> pd.DataFrame:
+    """
+    Load, flatten, and clean data from a JSON file.
+    
+    Args:
+        json_path (str): Path to the JSON file containing the data.
+        
+    Returns:
+        pd.DataFrame: The cleaned DataFrame.
+    """
+    logger.info(f"Loading data from {json_path}")
+    
     try:
         with open(json_path, "r") as f:
             data = json.load(f)
         
+        logger.info(f"Loaded {len(data)} records from JSON file")
+        
+        # Validate the JSON data structure
+        is_valid, invalid_entry = validate_json(data)
+        if not is_valid:
+            logger.warning(f"Invalid data structure in JSON. Example invalid entry: {invalid_entry}")
+        
         # Use json_normalize with sep='.' to flatten nested dictionaries with dot notation
         df = pd.json_normalize(data)
+        logger.debug(f"Normalized JSON to DataFrame with {len(df)} rows and {len(df.columns)} columns")
         
         # Process engine data
         df = process_engine_data(df)
@@ -139,31 +202,37 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
         # Drop time column as we're using real_time_seconds
         if 'time' in df.columns:
             df.drop(columns=["time"], inplace=True)
+            logger.debug("Dropped 'time' column (using 'real_time_seconds' instead)")
         
         # Clean velocity and altitude columns
         # Assuming they're now in the format 'superheavy.speed', 'starship.speed', etc.
         # Check if we need to rename columns
         if 'superheavy.speed' not in df.columns and 'superheavy.speed' not in df.columns:
+            logger.debug("Superheavy and Starship data need extraction from nested columns")
             # Extract speed and altitude from nested dictionaries if needed
             for column in tqdm(["superheavy", "starship"], desc="Separating columns"):
                 if column in df.columns:
                     df[[f"{column}.speed", f"{column}.altitude"]] = df[column].apply(pd.Series)
                     df.drop(columns=[column], inplace=True)
+                    logger.debug(f"Extracted speed and altitude from {column} column")
                     
         # Sort by time
         df.sort_values(by="real_time_seconds", inplace=True)
+        logger.debug("Sorted DataFrame by real_time_seconds")
         
         # Clean data
         df = clean_dataframe(df)
         
+        logger.info(f"Data processing complete. Final DataFrame has {len(df)} rows and {len(df.columns)} columns")
         return df
-    except json.JSONDecodeError:
-        print("Invalid JSON format.")
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in {json_path}: {str(e)}")
         return pd.DataFrame()  # Return an empty DataFrame in case of error
+        
     except Exception as e:
-        print(f"Error loading data: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error loading data from {json_path}: {str(e)}")
+        logger.debug(traceback.format_exc())
         return pd.DataFrame()
 
 
@@ -180,16 +249,23 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: in
     Returns:
         pd.Series: The calculated acceleration.
     """
+    logger.info(f"Computing acceleration from {speed_column} with {frame_distance} frame distance")
+    
     # Create a series for storing accelerations
     acceleration = pd.Series(index=df.index, dtype=float)
     
     # Convert speed from km/h to m/s
     speed_m_per_s = df[speed_column] * (1000 / 3600)
     
+    # Track statistics
+    invalid_count = 0
+    out_of_range_count = 0
+    
     # Loop through the dataframe with a frame-distance offset
     for i in range(len(df) - frame_distance):
         if pd.isna(speed_m_per_s.iloc[i]) or pd.isna(speed_m_per_s.iloc[i + frame_distance]):
             acceleration.iloc[i] = None
+            invalid_count += 1
             continue
             
         # Calculate speed difference over the frame distance
@@ -204,12 +280,19 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: in
             # Filter out unrealistic acceleration values
             if abs(accel_value) > max_accel:
                 acceleration.iloc[i] = None
+                out_of_range_count += 1
             else:
                 acceleration.iloc[i] = accel_value
         else:
             acceleration.iloc[i] = None
+            invalid_count += 1
     
     # The last frame_distance frames will have NaN acceleration
+    logger.debug(f"Acceleration computation stats: {invalid_count} invalid points, " +
+                f"{out_of_range_count} out-of-range points, " +
+                f"{frame_distance} trailing frames with no data")
+    
+    logger.info(f"Acceleration computation complete, produced {(~acceleration.isna()).sum()} valid values")
     return acceleration
 
 
@@ -223,4 +306,11 @@ def compute_g_force(acceleration_ms2: pd.Series) -> pd.Series:
     Returns:
         pd.Series: G-force values (1G = 9.81 m/s²)
     """
-    return acceleration_ms2 / G_FORCE_CONVERSION
+    logger.debug(f"Converting acceleration values to G forces (dividing by {G_FORCE_CONVERSION})")
+    g_forces = acceleration_ms2 / G_FORCE_CONVERSION
+    
+    # Quick validation check
+    if not g_forces.isna().all():
+        logger.debug(f"G-force range: {g_forces.min()} to {g_forces.max()} g")
+    
+    return g_forces

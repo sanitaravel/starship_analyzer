@@ -142,6 +142,7 @@ dmypy.json
 *.webm
 *.zip
 
-# Folders to ignore (testing)
+# Folders to ignore
 /results
 /flight_recordings
+/logs

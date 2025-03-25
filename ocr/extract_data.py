@@ -3,6 +3,10 @@ from typing import Tuple, Dict
 from utils import display_image
 from .ocr import extract_values_from_roi
 from .engine_detection import detect_engine_status
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -31,6 +35,7 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
         display_image(ss_speed_roi, "Starship Speed ROI")
         display_image(ss_altitude_roi, "Starship Altitude ROI")
         display_image(time_roi, "Time ROI")
+        logger.debug("Displayed ROIs for visual inspection")
 
     return sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi
 
@@ -50,6 +55,9 @@ def extract_superheavy_data(sh_speed_roi: np.ndarray, sh_altitude_roi: np.ndarra
     """
     speed_data = extract_values_from_roi(sh_speed_roi, mode="speed", display_transformed=display_rois, debug=debug)
     altitude_data = extract_values_from_roi(sh_altitude_roi, mode="altitude", display_transformed=display_rois, debug=debug)
+    
+    if debug:
+        logger.debug(f"Extracted Superheavy speed: {speed_data.get('value')}, altitude: {altitude_data.get('value')}")
     
     return {
         "speed": speed_data.get("value"),
@@ -73,6 +81,9 @@ def extract_starship_data(ss_speed_roi: np.ndarray, ss_altitude_roi: np.ndarray,
     speed_data = extract_values_from_roi(ss_speed_roi, mode="speed", display_transformed=display_rois, debug=debug)
     altitude_data = extract_values_from_roi(ss_altitude_roi, mode="altitude", display_transformed=display_rois, debug=debug)
     
+    if debug:
+        logger.debug(f"Extracted Starship speed: {speed_data.get('value')}, altitude: {altitude_data.get('value')}")
+    
     return {
         "speed": speed_data.get("value"),
         "altitude": altitude_data.get("value")
@@ -93,8 +104,16 @@ def extract_time_data(time_roi: np.ndarray, display_rois: bool, debug: bool, zer
         dict: A dictionary containing the extracted time data.
     """
     if zero_time_met:
+        if debug:
+            logger.debug("Zero time already met, returning default zero time")
         return {"sign": "+", "hours": 0, "minutes": 0, "seconds": 0}
-    return extract_values_from_roi(time_roi, mode="time", display_transformed=display_rois, debug=debug)
+    
+    time_data = extract_values_from_roi(time_roi, mode="time", display_transformed=display_rois, debug=debug)
+    
+    if debug and time_data:
+        logger.debug(f"Extracted time: {time_data.get('sign')} {time_data.get('hours', 0):02}:{time_data.get('minutes', 0):02}:{time_data.get('seconds', 0):02}")
+    
+    return time_data
 
 
 def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = False, zero_time_met: bool = False) -> Tuple[Dict, Dict, Dict]:
@@ -110,6 +129,8 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
     Returns:
         tuple: A tuple containing the extracted data for Superheavy, Starship, and Time.
     """
+    logger.debug("Starting data extraction from image")
+    
     # Preprocess the image to get ROIs
     sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi = preprocess_image(
         image, display_rois)
@@ -122,16 +143,19 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
 
     # If Starship extraction returns nothing, give it Superheavy data
     if not starship_data.get("speed") or not starship_data.get("altitude"):
+        logger.debug("Starship data incomplete, using Superheavy data as fallback")
         starship_data = superheavy_data
 
     # Extract time separately
     time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
     
     # Detect engine status
+    logger.debug("Detecting engine status")
     engine_data = detect_engine_status(image, debug)
     
     # Add engine data to vehicle data
     superheavy_data["engines"] = engine_data["superheavy"]
     starship_data["engines"] = engine_data["starship"]
 
+    logger.debug("Data extraction complete")
     return superheavy_data, starship_data, time_data

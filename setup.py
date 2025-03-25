@@ -68,7 +68,7 @@ def create_virtual_environment():
 def create_required_directories():
     """Create directories required for the application."""
     print_step(2, "Creating required directories")
-    directories = ['flight_recordings', 'results', '.tmp']
+    directories = ['flight_recordings', 'results', '.tmp', 'logs']
     
     for directory in directories:
         try:
