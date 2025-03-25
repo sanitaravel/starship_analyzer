@@ -15,6 +15,7 @@ A powerful Python tool for extracting, analyzing, and visualizing telemetry data
   - [📋 Usage Guide](#-usage-guide)
     - [Getting Started](#getting-started)
     - [Workflow](#workflow)
+    - [Logging System](#logging-system)
     - [Available Commands](#available-commands)
   - [🔍 How It Works](#-how-it-works)
   - [📂 Project Structure](#-project-structure)
@@ -102,6 +103,18 @@ Flight Recording → Frame Processing → Data Extraction → Analysis → Visua
 2. **Processing**: Extract telemetry data through parallel frame processing
 3. **Analysis**: Clean data, calculate derived metrics, and detect patterns
 4. **Output**: Generate visualizations and comparison plots in the `results` directory
+
+### Logging System
+
+The application maintains detailed logs to help with troubleshooting and tracking operation:
+
+- Each session creates a timestamped log file in the `logs` directory
+- Log files follow the format `starship_analyzer_YYYYMMDD_HHMMSS.log`
+- Console output shows essential information while full details are saved to log files
+- Log levels include DEBUG, INFO, WARNING, ERROR, and CRITICAL
+- For troubleshooting issues, check the latest log file in the `logs` directory
+
+You can find error messages, processing statistics, and detailed operation information in the log files if you encounter any problems during analysis.
 
 ### Available Commands
 
