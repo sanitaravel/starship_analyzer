@@ -182,9 +182,22 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
     Returns:
         tuple: (results, zero_time_frame)
     """
-    # Limit the number of workers based on available CPU cores
-    num_cores = min(os.cpu_count() or 6, 6)  # Limit to 6 cores max to avoid CUDA issues
-    logger.info(f"Using {num_cores} worker processes for parallel processing")
+    # Determine core count based on GPU availability
+    available_cores = os.cpu_count() or 8
+    try:
+        import torch
+        if torch.cuda.is_available():
+            # If GPU-OCR is in use, use half of available cores
+            num_cores = max(1, available_cores // 2)
+            logger.info(f"GPU-OCR detected. Using {num_cores} worker processes (half of available {available_cores})")
+        else:
+            # If CPU-only, use all available cores
+            num_cores = available_cores
+            logger.info(f"CPU-OCR detected. Using all {num_cores} available cores")
+    except ImportError:
+        # If torch is not available, assume CPU-only
+        num_cores = available_cores
+        logger.info(f"Torch not available. Using all {num_cores} available cores")
 
     results = []
     zero_time_met = False
