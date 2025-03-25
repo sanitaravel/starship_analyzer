@@ -183,7 +183,7 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
         tuple: (results, zero_time_frame)
     """
     # Limit the number of workers based on available CPU cores
-    num_cores = os.cpu_count()
+    num_cores = min(os.cpu_count() or 6, 6)  # Limit to 6 cores max to avoid CUDA issues
     logger.info(f"Using {num_cores} worker processes for parallel processing")
 
     results = []
