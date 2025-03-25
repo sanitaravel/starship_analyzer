@@ -26,13 +26,16 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Log directory and file
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-LOG_FILE = os.path.join(LOG_DIR, 'starship_analyzer.log')
+LOG_FILE = os.path.join(LOG_DIR, 'starship_analyzer.log')  # Default log file, will be overridden by session-specific logs
 
 # Create the log directory if it doesn't exist
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Store all loggers to avoid creating duplicates
 _loggers = {}
+
+# Store the current session's log file path
+CURRENT_SESSION_LOG_FILE = None
 
 def get_logger(name: str, level: int = None) -> logging.Logger:
     """
@@ -67,10 +70,9 @@ def get_logger(name: str, level: int = None) -> logging.Logger:
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
         
-        # File handler with rotation (10MB max size, keep 5 backup files)
-        file_handler = RotatingFileHandler(
-            LOG_FILE, maxBytes=10*1024*1024, backupCount=5
-        )
+        # File handler - use current session log file if available, otherwise use default
+        log_file = CURRENT_SESSION_LOG_FILE or LOG_FILE
+        file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     
@@ -85,7 +87,7 @@ def set_global_log_level(level: Union[int, str]) -> None:
     Args:
         level: The log level (either a string name or integer value)
     """
-    global DEFAULT_LOG_LEVEL  # Move the global declaration to the beginning of the function
+    global DEFAULT_LOG_LEVEL
     
     # Convert string level to numeric if needed
     if isinstance(level, str):
@@ -103,11 +105,44 @@ def set_global_log_level(level: Union[int, str]) -> None:
     # Update root logger as well
     logging.getLogger().setLevel(level)
 
-def start_new_session() -> None:
+def _update_file_handlers(new_log_file: str) -> None:
     """
-    Start a new logging session, adding a session separator to the log file.
+    Update all existing loggers to use a new log file.
+    
+    Args:
+        new_log_file: Path to the new log file
+    """
+    for logger in _loggers.values():
+        # Remove existing file handlers
+        for handler in logger.handlers[:]:
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+        
+        # Add new file handler
+        formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
+        file_handler = logging.FileHandler(new_log_file)
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(logger.level)
+        logger.addHandler(file_handler)
+
+def start_new_session() -> logging.Logger:
+    """
+    Start a new logging session with a new log file.
     Call this at the beginning of program execution.
+    
+    Returns:
+        Root logger for the application
     """
+    global CURRENT_SESSION_LOG_FILE
+    
+    # Generate a new log file name with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    CURRENT_SESSION_LOG_FILE = os.path.join(LOG_DIR, f"starship_analyzer_{timestamp}.log")
+    
+    # Update existing loggers to use the new file
+    if _loggers:
+        _update_file_handlers(CURRENT_SESSION_LOG_FILE)
+    
     # Create a root logger for session-wide messages
     root_logger = get_logger("starship_analyzer")
     
