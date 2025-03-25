@@ -182,8 +182,7 @@ See the [LICENSE](LICENSE) file for complete details.
 If you use this software in academic or research contexts, please cite it as:
 
 ```text
-Koshcheev, A. (2025). Starship Analyzer: Telemetry extraction and analysis 
-tool for SpaceX Starship launches. GitHub. 
+Koshcheev, A. (2025). Starship Analyzer: Telemetry extraction and analysis tool for SpaceX Starship launches. GitHub. 
 https://github.com/sanitaravel/starship_analyzer
 ```
 
