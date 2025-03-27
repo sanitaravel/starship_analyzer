@@ -275,6 +275,9 @@ def install_dependencies(cuda_version, step_num=6):
         print_warning("Make sure the virtual environment was created correctly")
         return False
     
+    # Define Windows-only packages
+    windows_only_packages = ["pywin32", "WMI", "wmi"]
+    
     try:
         # Upgrade pip first using the virtual environment's python
         print_warning("Upgrading pip in virtual environment...")
@@ -303,8 +306,8 @@ def install_dependencies(cuda_version, step_num=6):
             print_warning("Please ensure the file is properly encoded (preferably as UTF-8)")
             return False
         
-        # Create a modified requirements file without torch and torchvision
-        temp_req_path = os.path.join(".tmp", "requirements_without_torch.txt")
+        # Create a modified requirements file without torch, torchvision, and Windows-only packages on non-Windows
+        temp_req_path = os.path.join(".tmp", "requirements_modified.txt")
         os.makedirs(os.path.dirname(temp_req_path), exist_ok=True)
         
         with open(temp_req_path, 'w', encoding='utf-8') as f:
@@ -312,11 +315,22 @@ def install_dependencies(cuda_version, step_num=6):
                 # Skip comment lines that might be causing problems
                 if line.strip().startswith("//"):
                     continue
-                if not (line.startswith("torch") or line.startswith("torchvision")):
-                    f.write(line)
+                
+                # Skip torch and torchvision as they will be installed separately
+                if line.startswith("torch") or line.startswith("torchvision"):
+                    continue
+                    
+                # Skip Windows-only packages on non-Windows platforms
+                if platform.system() != "Windows":
+                    package_name = line.split('==')[0].strip() if '==' in line else line.strip()
+                    if package_name.lower() in [p.lower() for p in windows_only_packages]:
+                        print_warning(f"Skipping Windows-only package: {package_name}")
+                        continue
+                
+                f.write(line)
         
         # Install other dependencies first
-        print_warning("Installing other dependencies from requirements.txt...")
+        print_warning("Installing dependencies from requirements.txt...")
         try:
             other_deps = subprocess.run([pip_path, "install", "-r", temp_req_path], 
                                       capture_output=True, text=True, check=True)
