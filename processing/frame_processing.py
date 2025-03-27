@@ -27,7 +27,7 @@ def process_image(image_path: str, display_rois: bool, debug: bool) -> None:
             
         logger.debug(f"Image loaded successfully, shape: {image.shape}")
         
-        superheavy_data, starship_data, time_data = extract_data(
+        superheavy_data, starship_data, time_data, fuel_data = extract_data(
             image, display_rois=display_rois, debug=debug)
             
         if debug:
@@ -54,6 +54,10 @@ def process_image(image_path: str, display_rois: bool, debug: bool) -> None:
                 ss_active = sum(sum(1 for e in engines if e) for engines in starship_data['engines'].values())
                 ss_total = sum(len(engines) for engines in starship_data['engines'].values())
                 logger.debug(f"Starship engines: {ss_active}/{ss_total} active")
+                
+            if fuel_data:
+                logger.debug(f"Fuel levels - SH LOX: {fuel_data['superheavy']['lox']}, SH CH4: {fuel_data['superheavy']['ch4']}")
+                logger.debug(f"Fuel levels - SS LOX: {fuel_data['starship']['lox']}, SS CH4: {fuel_data['starship']['ch4']}")
                 
     except Exception as e:
         logger.error(f"Error processing image {image_path}: {str(e)}")

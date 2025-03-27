@@ -36,13 +36,14 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
         dict: A dictionary containing the extracted data for the frame.
     """
     try:
-        superheavy_data, starship_data, time_data = extract_data(
+        superheavy_data, starship_data, time_data, fuel_data = extract_data(
             frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met)
         frame_result = {
             "frame_number": frame_number,
             "superheavy": superheavy_data,
             "starship": starship_data,
-            "time": time_data
+            "time": time_data,
+            'fuel_data': fuel_data
         }
         return frame_result
     except Exception as e:
@@ -53,6 +54,7 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
             "superheavy": {},
             "starship": {},
             "time": None,
+            "fuel_data": {},
             "error": str(e)
         }
 

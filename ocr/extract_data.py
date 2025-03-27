@@ -3,6 +3,7 @@ from typing import Tuple, Dict
 from utils import display_image
 from .ocr import extract_values_from_roi
 from .engine_detection import detect_engine_status
+from .fuel_detection import detect_fuel_levels
 from logger import get_logger
 
 # Initialize logger
@@ -171,7 +172,7 @@ def extract_time_data(time_roi: np.ndarray, display_rois: bool, debug: bool, zer
         return {}
 
 
-def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = False, zero_time_met: bool = False) -> Tuple[Dict, Dict, Dict]:
+def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = False, zero_time_met: bool = False) -> Tuple[Dict, Dict, Dict, Dict]:
     """
     Extract data from an image.
 
@@ -182,7 +183,7 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
         zero_time_met (bool): Whether a frame with time 0:0:0 has been met.
 
     Returns:
-        tuple: A tuple containing the extracted data for Superheavy, Starship, and Time.
+        tuple: A tuple containing the extracted data for Superheavy, Starship, Time, and Fuel.
     """
     logger.debug("Starting data extraction from image")
     
@@ -234,6 +235,26 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
         # Add empty engine data to avoid KeyError
         superheavy_data["engines"] = {}
         starship_data["engines"] = {}
+    
+    # Detect fuel levels
+    logger.debug("Detecting fuel levels")
+    try:
+        fuel_data = detect_fuel_levels(image, display_rois, debug)
+        
+        # Add fuel data to vehicle data
+        superheavy_data["fuel"] = fuel_data["superheavy"]
+        starship_data["fuel"] = fuel_data["starship"]
+        
+        if debug:
+            logger.debug(f"Fuel level summary - Superheavy: LOX {fuel_data['superheavy']['lox']}%, CH4 {fuel_data['superheavy']['ch4']}%, " + 
+                         f"Starship: LOX {fuel_data['starship']['lox']}%, CH4 {fuel_data['starship']['ch4']}%")
+    except Exception as e:
+        logger.error(f"Error detecting fuel levels: {str(e)}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        # Add empty fuel data to avoid KeyError
+        superheavy_data["fuel"] = {"lox": None, "ch4": None}
+        starship_data["fuel"] = {"lox": None, "ch4": None}
 
     logger.debug("Data extraction complete")
     
@@ -244,5 +265,8 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
             logger.debug(f"Final extracted data - Time: {time_data.get('sign')} {time_data.get('hours', 0):02}:{time_data.get('minutes', 0):02}:{time_data.get('seconds', 0):02}")
         else:
             logger.debug("Final extracted data - Time: None")
+        if fuel_data:
+            logger.debug(f"Final extracted data - Fuel: Superheavy LOX {fuel_data['superheavy']['lox']}%, CH4 {fuel_data['superheavy']['ch4']}%, " +
+                         f"Starship LOX {fuel_data['starship']['lox']}%, CH4 {fuel_data['starship']['ch4']}%")
     
-    return superheavy_data, starship_data, time_data
+    return superheavy_data, starship_data, time_data, fuel_data
