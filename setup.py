@@ -29,14 +29,17 @@ def print_error(message):
     """Print an error message."""
     print(f"{RED}✗ {message}{RESET}")
 
-def create_virtual_environment():
+def create_virtual_environment(step_num=1):
     """
     Create a Python virtual environment.
+    
+    Args:
+        step_num (int or float): Step number to display in the console output
     
     Returns:
         bool: True if virtual environment was created successfully, False otherwise.
     """
-    print_step(1, "Creating Python virtual environment")
+    print_step(step_num, "Creating Python virtual environment")
     venv_dir = "venv"
     
     # Check if virtual environment already exists
@@ -65,9 +68,14 @@ def create_virtual_environment():
         print_error(f"Unexpected error creating virtual environment: {e}")
         return False
 
-def create_required_directories():
-    """Create directories required for the application."""
-    print_step(2, "Creating required directories")
+def create_required_directories(step_num=2):
+    """
+    Create directories required for the application.
+    
+    Args:
+        step_num (int or float): Step number to display in the console output
+    """
+    print_step(step_num, "Creating required directories")
     directories = ['flight_recordings', 'results', '.tmp', 'logs']
     
     for directory in directories:
@@ -77,14 +85,17 @@ def create_required_directories():
         except Exception as e:
             print_error(f"Failed to create directory '{directory}': {e}")
 
-def check_cuda_version():
+def check_cuda_version(step_num=3):
     """
     Check the installed CUDA version on the system.
+    
+    Args:
+        step_num (int): Step number to display in the console output
     
     Returns:
         str or None: CUDA version (e.g. '12.6', '12.4', '11.8') or None if not found
     """
-    print_step(3, "Checking CUDA version for PyTorch installation")
+    print_step(step_num, "Checking CUDA version for PyTorch installation")
     
     cuda_version = None
     
@@ -232,17 +243,18 @@ def install_torch_with_cuda(pip_path, cuda_version):
         print_error(e.stderr)
         return False
 
-def install_dependencies(cuda_version):
+def install_dependencies(cuda_version, step_num=6):
     """
     Install Python dependencies from requirements.txt into the virtual environment.
     
     Args:
         cuda_version (str or None): CUDA version for PyTorch installation
+        step_num (int or float): Step number to display in the console output
     
     Returns:
         bool: True if dependencies were installed successfully, False otherwise.
     """
-    print_step(6, "Installing dependencies into virtual environment")
+    print_step(step_num, "Installing dependencies into virtual environment")
     
     # Check if requirements.txt exists
     if not os.path.exists("requirements.txt"):
@@ -330,17 +342,18 @@ def install_dependencies(cuda_version):
         print_warning(traceback.format_exc())
         return False
 
-def verify_installations(python_path):
+def verify_installations(python_path, step_num=7):
     """
     Verify that all necessary dependencies are installed correctly.
     
     Args:
         python_path (str): Path to the Python executable
+        step_num (int or float): Step number to display in the console output
         
     Returns:
         tuple: (bool for success, bool for GPU available)
     """
-    print_step(7, "Verifying installations")
+    print_step(step_num, "Verifying installations")
     
     # List of core dependencies to verify
     dependencies = [
@@ -415,11 +428,14 @@ def verify_installations(python_path):
     
     return all_successful, gpu_available
 
-def install_cuda_toolkit():
+def install_cuda_toolkit(step_num=4):
     """
     Install the CUDA Toolkit if not already installed.
+    
+    Args:
+        step_num (int or float): Step number to display in the console output
     """
-    print_step(4, "Installing CUDA Toolkit")
+    print_step(step_num, "Installing CUDA Toolkit")
     if platform.system() == "Windows":
         try:
             print_warning("Downloading and installing CUDA Toolkit for Windows...")
@@ -440,11 +456,14 @@ def install_cuda_toolkit():
     else:
         print_warning("CUDA Toolkit installation is not supported on this platform.")
 
-def install_nvidia_drivers():
+def install_nvidia_drivers(step_num=5):
     """
     Install the latest NVIDIA drivers if not already installed.
+    
+    Args:
+        step_num (int or float): Step number to display in the console output
     """
-    print_step(5, "Installing NVIDIA drivers")
+    print_step(step_num, "Installing NVIDIA drivers")
     if platform.system() == "Windows":
         try:
             print_warning("Downloading and installing NVIDIA drivers for Windows...")
@@ -492,27 +511,44 @@ def main():
     print("="*60 + "\n")
     
     # Step 1: Create virtual environment
-    venv_created = create_virtual_environment()
+    venv_created = create_virtual_environment(1)
     if not venv_created:
         print_error("Failed to create virtual environment. Aborting setup.")
         return
     
     # Step 2: Create required directories
-    create_required_directories()
+    create_required_directories(2)
     
     # Step 3: Check CUDA version before installing dependencies
-    cuda_version = check_cuda_version()
+    cuda_version = check_cuda_version(3)
     
-    # Steps 4-5: Install CUDA Toolkit and NVIDIA drivers if necessary
+    # Step 4-5: Optional GPU setup if CUDA not detected
     if not cuda_version:
-        install_cuda_toolkit()
-        install_nvidia_drivers()
-        cuda_version = check_cuda_version()  # Recheck CUDA version after installation
+        print_warning("CUDA not detected. GPU acceleration requires NVIDIA drivers and CUDA toolkit.")
+        setup_gpu = input("Would you like guidance on setting up GPU support? (y/n): ").lower().strip() == 'y'
+        if setup_gpu:
+            # Step 4: Install NVIDIA drivers
+            install_nvidia_drivers(4)
+            # Step 5: Install CUDA Toolkit
+            install_cuda_toolkit(5)
+            
+            # Check CUDA version again after installation
+            print_warning("Checking for CUDA again after installation...")
+            cuda_version = check_cuda_version(5.5)  # Using 5.5 to indicate it's between steps 5 and 6
+            
+            if cuda_version:
+                print_success(f"CUDA {cuda_version} successfully detected after installation!")
+            else:
+                print_warning("CUDA still not detected. Continuing with CPU-only installation.")
+                continue_anyway = input("Continue with CPU-only installation? (y/n): ").lower().strip() == 'y'
+                if not continue_anyway:
+                    print_warning("Setup paused. Please ensure CUDA is properly installed and run this script again.")
+                    return
     
     # Step 6: Install dependencies with the detected CUDA version
     deps_installed = False
     if venv_created:
-        deps_installed = install_dependencies(cuda_version)
+        deps_installed = install_dependencies(cuda_version, 6)
         if not deps_installed:
             print_error("Failed to install dependencies. Aborting setup.")
             return
@@ -527,7 +563,7 @@ def main():
     all_successful = False
     gpu_available = False
     if deps_installed:
-        all_successful, gpu_available = verify_installations(python_path)
+        all_successful, gpu_available = verify_installations(python_path, 7)
     
     # Print summary
     print("\n" + "="*60)

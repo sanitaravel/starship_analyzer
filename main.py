@@ -4,9 +4,13 @@ from processing import process_image, process_video_frame, process_frame, iterat
 import os
 from inquirer import errors
 from logger import start_new_session, get_logger, set_global_log_level
+import logging
 
 # Initialize logger
 logger = get_logger(__name__)
+
+# Global debug state
+DEBUG_MODE = False
 
 
 def validate_number(_, current):
@@ -50,12 +54,29 @@ def get_video_files_from_flight_recordings():
     return video_files
 
 
+def toggle_debug_mode():
+    """Toggle debug mode on/off and set appropriate log levels."""
+    global DEBUG_MODE
+    DEBUG_MODE = not DEBUG_MODE
+    
+    if DEBUG_MODE:
+        logger.info("Debug mode enabled")
+        set_global_log_level(logging.DEBUG)
+    else:
+        logger.info("Debug mode disabled")
+        set_global_log_level(logging.INFO)
+    
+    return True
+
+
 def process_random_frame():
     """Handle the process random video frame menu option."""
     video_files = get_video_files_from_flight_recordings()
     if not video_files:
         return True
-        
+    
+    logger.debug("Starting random frame processing")
+    
     questions = [
         inquirer.List(
             'video_path',
@@ -74,8 +95,10 @@ def process_random_frame():
     answers = inquirer.prompt(questions)
     start_time = int(answers['start_time']) if answers['start_time'] else 0
     end_time = int(answers['end_time']) if answers['end_time'] else -1
+    
+    logger.debug(f"Processing random frame from {answers['video_path']} with start_time={start_time}, end_time={end_time}")
     process_video_frame(
-        answers['video_path'], answers['display_rois'], answers['debug'], start_time, end_time)
+        answers['video_path'], answers['display_rois'], answers['debug'] or DEBUG_MODE, start_time, end_time)
     return True
 
 
@@ -84,7 +107,9 @@ def process_complete_video():
     video_files = get_video_files_from_flight_recordings()
     if not video_files:
         return True
-        
+    
+    logger.debug("Starting complete video processing")
+    
     questions = [
         inquirer.List(
             'video_path',
@@ -99,8 +124,10 @@ def process_complete_video():
     ]
     answers = inquirer.prompt(questions)
     batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
+    
+    logger.debug(f"Processing complete video {answers['video_path']} with launch_number={answers['launch_number']}, batch_size={batch_size}")
     iterate_through_frames(
-        answers['video_path'], int(answers['launch_number']), batch_size=batch_size)
+        answers['video_path'], int(answers['launch_number']), debug=DEBUG_MODE, batch_size=batch_size)
     return True
 
 
@@ -113,7 +140,9 @@ def visualize_flight_data():
     if not launch_folders:
         print("No launch folders found in ./results directory.")
         return True
-
+    
+    logger.debug(f"Found {len(launch_folders)} launch folders for visualization")
+    
     questions = [
         inquirer.List(
             'launch_folder',
@@ -132,6 +161,8 @@ def visualize_flight_data():
     json_path = os.path.join(results_dir, answers['launch_folder'], 'results.json')
     start_time = int(answers['start_time']) if answers['start_time'] else 0
     end_time = int(answers['end_time']) if answers['end_time'] else -1
+    
+    logger.debug(f"Visualizing flight data from {json_path} with time window {start_time} to {end_time}")
     plot_flight_data(json_path, start_time, end_time, show_figures=answers['show_figures'])
     return True
 
@@ -169,6 +200,10 @@ def compare_multiple_launches_menu():
                   for folder in answers['launches']]
     start_time = int(answers['start_time']) if answers['start_time'] else 0
     end_time = int(answers['end_time']) if answers['end_time'] else -1
+    
+    logger.debug(f"Comparing launches: {', '.join(answers['launches'])}")
+    logger.debug(f"Time window: {start_time} to {end_time}")
+    
     compare_multiple_launches(start_time, end_time, json_paths, show_figures=answers['show_figures'])
     return True
 
@@ -178,6 +213,8 @@ def display_menu() -> bool:
     Display a step-by-step menu for the user to navigate and select options.
     Returns False if the user wants to exit, True otherwise.
     """
+    debug_status = "Enabled" if DEBUG_MODE else "Disabled"
+    
     questions = [
         inquirer.List(
             'action',
@@ -187,12 +224,15 @@ def display_menu() -> bool:
                 'Process complete video',
                 'Visualize flight data',
                 'Visualize multiple launches data',
+                f'Toggle Debug Mode (Currently: {debug_status})',
                 'Exit'
             ],
         ),
     ]
 
     answers = inquirer.prompt(questions)
+    
+    logger.debug(f"User selected: {answers['action']}")
 
     if answers['action'] == 'Process random video frame':
         return process_random_frame()
@@ -202,6 +242,8 @@ def display_menu() -> bool:
         return visualize_flight_data()
     elif answers['action'] == 'Visualize multiple launches data':
         return compare_multiple_launches_menu()
+    elif answers['action'].startswith('Toggle Debug Mode'):
+        return toggle_debug_mode()
     elif answers['action'] == 'Exit':
         print("Exiting the program.")
         return False  # Return False to break the loop in main()
@@ -212,7 +254,7 @@ def main() -> None:
     Main function to handle the step-by-step menu and run the appropriate function.
     """
     # Start a new logging session
-    start_new_session()
+    root_logger = start_new_session()
     logger.info("Starting Starship Analyzer application")
     
     try:

@@ -31,9 +31,13 @@ def get_reader():
         if gpu_available:
             # Try to explicitly set the device to avoid conflicts
             try:
-                torch.cuda.set_device(0)
-                device_name = torch.cuda.get_device_name(0)
-                logger.info(f"Process {pid}: Using GPU: {device_name}")
+                device_id = 0
+                logger.debug(f"Process {pid}: Attempting to set CUDA device to {device_id}")
+                torch.cuda.set_device(device_id)
+                device_name = torch.cuda.get_device_name(device_id)
+                total_memory = torch.cuda.get_device_properties(device_id).total_memory / (1024**3)
+                logger.debug(f"Process {pid}: Using GPU: {device_name} with {total_memory:.2f} GB total memory")
+                logger.debug(f"Process {pid}: CUDA version: {torch.version.cuda}")
             except Exception as e:
                 logger.error(f"Process {pid}: Error setting CUDA device: {e}")
                 # Fall back to CPU if there's an issue with GPU
@@ -41,12 +45,14 @@ def get_reader():
                 
         # Initialize the reader
         try:
+            logger.debug(f"Process {pid}: Starting EasyOCR initialization with GPU={gpu_available}")
             _thread_local.reader = easyocr.Reader(['en'], gpu=gpu_available, verbose=False)
             logger.info(f"Process {pid}: EasyOCR initialized {'with GPU' if gpu_available else 'on CPU'}")
         except Exception as e:
             logger.error(f"Process {pid}: Failed to initialize EasyOCR with GPU, falling back to CPU: {e}")
             # Fall back to CPU mode if GPU initialization fails
             try:
+                logger.debug(f"Process {pid}: Attempting fallback to CPU mode")
                 _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
                 logger.info(f"Process {pid}: EasyOCR initialized on CPU (fallback)")
             except Exception as e2:
@@ -77,24 +83,45 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
             if debug:
                 logger.warning("Empty or invalid ROI provided to OCR")
             return {}
+            
+        if debug:
+            logger.debug(f"Processing ROI of shape {roi.shape} in mode: {mode}")
+            # Log memory usage if debug is enabled
+            if torch.cuda.is_available():
+                pid = os.getpid()
+                device_id = torch.cuda.current_device()
+                allocated = torch.cuda.memory_allocated(device_id) / (1024**2)
+                reserved = torch.cuda.memory_reserved(device_id) / (1024**2)
+                logger.debug(f"Process {pid}: GPU memory - Allocated: {allocated:.2f} MB, Reserved: {reserved:.2f} MB")
         
         # Use EasyOCR to extract text with appropriate parameters for each mode
         allowlist = '0123456789T+-:' if mode == "time" else '0123456789'
         
         # Process the image with error handling
         try:
+            if debug:
+                logger.debug(f"Starting OCR with allowlist: {allowlist}")
+                
             results = ocr_reader.readtext(roi, detail=0, allowlist=allowlist)
             text = ' '.join(results) if results else ""
+            
+            if debug:
+                logger.debug(f"OCR results: {results}")
+                
         except RuntimeError as e:
             # Handle CUDA out-of-memory errors
             if "CUDA out of memory" in str(e):
                 logger.warning(f"CUDA out of memory error in OCR. Falling back to CPU.")
+                logger.debug(f"Memory error details: {str(e)}")
                 # Try again with CPU
                 torch.cuda.empty_cache()  # Clear CUDA memory
+                logger.debug("CUDA memory cleared, reinitializing reader on CPU")
                 _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
                 results = _thread_local.reader.readtext(roi, detail=0, allowlist=allowlist)
                 text = ' '.join(results) if results else ""
+                logger.debug(f"CPU fallback OCR results: {results}")
             else:
+                logger.error(f"RuntimeError in OCR: {str(e)}")
                 raise
         
         if debug:
@@ -111,14 +138,25 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     # Process according to mode
     if mode == "speed":
         speed = extract_single_value(text)
+        if debug:
+            logger.debug(f"Extracted speed value: {speed}")
         return {"value": speed}
     elif mode == "altitude":
         altitude = extract_single_value(text)
+        if debug:
+            logger.debug(f"Extracted altitude value: {altitude}")
         return {"value": altitude}
     elif mode == "time":
         time = extract_time(text)
+        if debug:
+            if time:
+                logger.debug(f"Extracted time: {time['sign']} {time.get('hours', 0):02}:{time.get('minutes', 0):02}:{time.get('seconds', 0):02}")
+            else:
+                logger.debug("Failed to extract time")
         return time if time else {}
     else:
+        if debug:
+            logger.debug(f"Unknown mode: {mode}")
         return {}
 
 def extract_single_value(text: str) -> Optional[int]:

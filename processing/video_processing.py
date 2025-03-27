@@ -317,10 +317,14 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
     logger.info(f"Starting video processing for launch {launch_number}")
     logger.info(f"Video path: {video_path}, batch size: {batch_size}")
     
+    if debug:
+        logger.debug("Debug mode is enabled for video processing")
+    
     # Ensure spawn method is used
     if multiprocessing.get_start_method() != 'spawn':
         try:
             multiprocessing.set_start_method('spawn', force=True)
+            logger.debug("Set multiprocessing start method to 'spawn'")
         except RuntimeError:
             logger.warning("Could not set multiprocessing start method to 'spawn'")
             logger.warning("Processing will continue with current method, but may encounter CUDA issues")
@@ -334,13 +338,37 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
     frame_count, fps = get_video_properties(video_path, max_frames)
     logger.info(f"Processing {frame_count} frames from video at {fps} fps")
     
+    if debug:
+        logger.debug(f"Video properties: {frame_count} frames, {fps} fps")
+        
+        # Get additional video properties for debugging
+        cap = cv2.VideoCapture(video_path)
+        if cap.isOpened():
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            logger.debug(f"Video resolution: {width}x{height}")
+            video_codec = int(cap.get(cv2.CAP_PROP_FOURCC))
+            codec_str = "".join([chr((video_codec >> 8 * i) & 0xFF) for i in range(4)])
+            logger.debug(f"Video codec: {codec_str}")
+            cap.release()
+    
     # Create batches
     batches = create_batches(frame_count, batch_size)
     logger.info(f"Created {len(batches)} batches of size {batch_size}")
+    
+    if debug and len(batches) > 0:
+        logger.debug(f"First batch frame numbers: {batches[0]}")
+        logger.debug(f"Last batch frame numbers: {batches[-1]}")
 
     # Process video frames
+    logger.debug("Starting parallel video frame processing")
     results, zero_time_frame = process_video_frames(batches, video_path, display_rois, debug)
     logger.info(f"Processing complete. Analyzed {len(results)} frames successfully.")
+    
+    if debug:
+        successful_frames = sum(1 for r in results if "error" not in r)
+        failed_frames = sum(1 for r in results if "error" in r)
+        logger.debug(f"Frame processing statistics: {successful_frames} successful, {failed_frames} failed")
     
     if zero_time_frame:
         logger.info(f"Zero time frame identified at frame {zero_time_frame}")
@@ -348,9 +376,11 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         logger.warning("No zero time frame was identified. Time calculations may be inaccurate.")
     
     # Calculate real time for each frame
+    logger.debug("Starting real-time calculations")
     results = calculate_real_times(results, zero_time_frame, fps)
     logger.info(f"Time calculations complete.")
 
     # Save results
+    logger.debug(f"Saving results to launch_{launch_number}")
     save_results(results, launch_number)
     logger.info(f"Video processing for launch {launch_number} completed successfully")
