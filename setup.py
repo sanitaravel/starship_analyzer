@@ -317,8 +317,32 @@ def install_dependencies(cuda_version, step_num=6):
         
         # Install other dependencies first
         print_warning("Installing other dependencies from requirements.txt...")
-        other_deps = subprocess.run([pip_path, "install", "-r", temp_req_path], 
-                                   capture_output=True, text=True, check=True)
+        try:
+            other_deps = subprocess.run([pip_path, "install", "-r", temp_req_path], 
+                                      capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print_error(f"Failed to install dependencies from requirements file")
+            print_error("STDOUT:")
+            print_warning(e.stdout)
+            print_error("STDERR:")
+            print_error(e.stderr)
+            
+            # Try to install packages one by one to identify problematic package
+            print_warning("Attempting to install packages individually to identify problematic packages...")
+            
+            with open(temp_req_path, 'r', encoding='utf-8') as f:
+                individual_packages = [line.strip() for line in f.readlines() if line.strip() and not line.startswith('#')]
+            
+            for package in individual_packages:
+                try:
+                    subprocess.run([pip_path, "install", package], 
+                                 capture_output=True, text=True, check=True)
+                    print_success(f"Successfully installed {package}")
+                except subprocess.CalledProcessError as pkg_e:
+                    print_error(f"Failed to install {package}:")
+                    print_warning(pkg_e.stderr)
+            
+            return False
         
         # Install PyTorch with appropriate CUDA support
         torch_installed = install_torch_with_cuda(pip_path, cuda_version)
@@ -333,8 +357,10 @@ def install_dependencies(cuda_version, step_num=6):
             
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to install dependencies: {e}")
-        if hasattr(e, 'output') and e.output:
-            print_warning(f"Error details: {e.output}")
+        if hasattr(e, 'stdout'):
+            print_warning(f"STDOUT: {e.stdout}")
+        if hasattr(e, 'stderr'):
+            print_error(f"STDERR: {e.stderr}")
         return False
     except Exception as e:
         print_error(f"Unexpected error installing dependencies: {e}")
