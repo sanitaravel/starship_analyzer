@@ -36,17 +36,15 @@ def install_torch_with_cuda(pip_path, cuda_version):
         url = f"https://download.pytorch.org/whl/{cuda_tag}"
         
         try:
-            # Install PyTorch with specific CUDA support
-            result = subprocess.run(
+            # Install PyTorch with specific CUDA support - allow output to stream to console
+            subprocess.run(
                 [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                check=True, capture_output=True, text=True
+                check=True
             )
             print_success(f"PyTorch installed with CUDA {cuda_version} support")
             return True
         except subprocess.CalledProcessError as e:
-            print_error(f"PyTorch installation with CUDA {cuda_version} failed:")
-            print_warning(e.stdout)
-            print_error(e.stderr)
+            print_error(f"PyTorch installation with CUDA {cuda_version} failed")
             print_warning("Falling back to CPU-only PyTorch installation")
     elif cuda_version:
         # CUDA is installed but version not in cuda_map - use cu118 as fallback
@@ -55,17 +53,15 @@ def install_torch_with_cuda(pip_path, cuda_version):
         url = "https://download.pytorch.org/whl/cu118"
         
         try:
-            # Install PyTorch with CUDA 11.8 support
-            result = subprocess.run(
+            # Install PyTorch with CUDA 11.8 support - allow output to stream to console
+            subprocess.run(
                 [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                check=True, capture_output=True, text=True
+                check=True
             )
             print_success(f"PyTorch installed with CUDA 11.8 support (fallback for CUDA {cuda_version})")
             return True
         except subprocess.CalledProcessError as e:
-            print_error(f"PyTorch installation with CUDA 11.8 fallback failed:")
-            print_warning(e.stdout)
-            print_error(e.stderr)
+            print_error(f"PyTorch installation with CUDA 11.8 fallback failed")
             print_warning("Falling back to CPU-only PyTorch installation")
     else:
         print_warning("No CUDA detected")
@@ -73,16 +69,14 @@ def install_torch_with_cuda(pip_path, cuda_version):
     # Fall back to CPU-only installation
     try:
         print_warning("Installing CPU-only PyTorch...")
-        result = subprocess.run(
+        subprocess.run(
             [pip_path, "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu"],
-            check=True, capture_output=True, text=True
+            check=True
         )
         print_success("CPU-only PyTorch installed")
         return True
     except subprocess.CalledProcessError as e:
-        print_error("CPU-only PyTorch installation failed:")
-        print_warning(e.stdout)
-        print_error(e.stderr)
+        print_error("CPU-only PyTorch installation failed")
         return False
 
 def install_dependencies(cuda_version, step_num=6, force_cpu=False):
@@ -112,6 +106,20 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
         python_path = os.path.join("venv", "bin", "python")
         pip_path = os.path.join("venv", "bin", "pip")
     
+    # Install python3-tk on Linux systems
+    if platform.system() == "Linux":
+        print_warning("Installing Python Tkinter package for Linux...")
+        try:
+            # Show real-time output by not capturing it
+            subprocess.run(["sudo", "apt-get", "install", "-y", "python3-tk"], check=True)
+            print_success("Successfully installed python3-tk")
+        except subprocess.CalledProcessError as e:
+            print_error(f"Failed to install python3-tk: {e}")
+            print_warning("You may need to manually install Tkinter: sudo apt-get install python3-tk")
+        except Exception as e:
+            print_warning(f"Could not verify or install python3-tk: {e}")
+            print_warning("You may need to manually install Tkinter: sudo apt-get install python3-tk")
+    
     # Verify the virtual environment exists and has the necessary executables
     if not os.path.exists(python_path) or not os.path.exists(pip_path):
         print_error(f"Virtual environment executables not found at expected locations")
@@ -122,7 +130,7 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
     windows_only_packages = ["pywin32", "WMI", "wmi"]
     
     try:
-        # Upgrade pip first using the virtual environment's python
+        # Upgrade pip first using the virtual environment's python - show real-time output
         print_warning("Upgrading pip in virtual environment...")
         subprocess.run([python_path, "-m", "pip", "install", "--upgrade", "pip"], check=True)
         
@@ -149,6 +157,8 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
             print_warning("Please ensure the file is properly encoded (preferably as UTF-8)")
             return False
         
+        # Remove the package display section and keep only the requirements file preparation
+        
         # Create a modified requirements file without torch, torchvision, and Windows-only packages on non-Windows
         temp_req_path = os.path.join(".tmp", "requirements_modified.txt")
         os.makedirs(os.path.dirname(temp_req_path), exist_ok=True)
@@ -172,17 +182,14 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
                 
                 f.write(line)
         
-        # Install other dependencies first
+        # Install other dependencies first - allow output to stream to console
         print_warning("Installing dependencies from requirements.txt...")
         try:
-            other_deps = subprocess.run([pip_path, "install", "-r", temp_req_path], 
-                                      capture_output=True, text=True, check=True)
+            # Run without capture_output to show real-time installation progress
+            subprocess.run([pip_path, "install", "-r", temp_req_path], check=True)
+            print_success("Successfully installed dependencies from requirements.txt")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install dependencies from requirements file")
-            print_error("STDOUT:")
-            print_warning(e.stdout)
-            print_error("STDERR:")
-            print_error(e.stderr)
             
             # Try to install packages one by one to identify problematic package
             print_warning("Attempting to install packages individually to identify problematic packages...")
@@ -192,12 +199,12 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
             
             for package in individual_packages:
                 try:
-                    subprocess.run([pip_path, "install", package], 
-                                 capture_output=True, text=True, check=True)
+                    # Show real-time output for individual package installation
+                    print_warning(f"Installing {package}...")
+                    subprocess.run([pip_path, "install", package], check=True)
                     print_success(f"Successfully installed {package}")
-                except subprocess.CalledProcessError as pkg_e:
-                    print_error(f"Failed to install {package}:")
-                    print_warning(pkg_e.stderr)
+                except subprocess.CalledProcessError:
+                    print_error(f"Failed to install {package}")
             
             return False
         
@@ -218,10 +225,6 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
             
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to install dependencies: {e}")
-        if hasattr(e, 'stdout'):
-            print_warning(f"STDOUT: {e.stdout}")
-        if hasattr(e, 'stderr'):
-            print_error(f"STDERR: {e.stderr}")
         return False
     except Exception as e:
         print_error(f"Unexpected error installing dependencies: {e}")
