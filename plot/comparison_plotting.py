@@ -73,7 +73,7 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
     logger.debug(f"Comparing {len(df_list)} launches: {', '.join(labels)}")
     
     # Create figure (fullscreen)
-    plt.figure(figsize=FIGURE_SIZE)
+    fig = plt.figure(figsize=FIGURE_SIZE)
 
     # Custom color palette with distinct colors for each launch
     palette = sns.color_palette("husl", len(df_list))
@@ -128,14 +128,22 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved comparison plot to {save_path}")
 
+    # If showing figures, add to interactive viewer instead of displaying individually
     if show_figures:
-        # Maximize window when showing figures
-        maximize_figure_window()
-        plt.show()
+        # Check if we're in interactive mode (viewer exists in the caller's context)
+        from inspect import currentframe, getouterframes
+        frame = currentframe().f_back
+        if 'viewer' in frame.f_locals:
+            # Add the figure to the viewer
+            frame.f_locals['viewer'].add_figure(fig, title)
+        else:
+            # Fall back to regular display
+            maximize_figure_window()
+            plt.show()
     else:
-        plt.close()
+        plt.close(fig)
 
-
+ 
 def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, show_figures: bool = True) -> None:
     """
     Plot multiple launches on the same plot with a specified time window.
@@ -147,47 +155,68 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
         show_figures (bool): Whether to show figures or just save them.
     """
     logger.info(f"Comparing multiple launches (time window: {start_time}s to {end_time if end_time != -1 else 'end'}s)")
-    logger.debug(f"Loading data from {len(json_paths)} JSON files")
+    logger.debug(f"Loading data from {len(json_paths)} JSON files: {json_paths}")
+    
+    # Create interactive viewer if showing figures
+    if show_figures:
+        from .interactive_viewer import show_plots_interactively
+        viewer = show_plots_interactively("Multiple Launches Comparison")
     
     df_list = []
     labels = []
 
+    # Process each JSON file path separately
     for json_path in json_paths:
-        logger.info(f"Processing {json_path}")
-        df = load_and_clean_data(json_path)
-        if df.empty:
-            logger.warning(f"Empty DataFrame for {json_path}, skipping")
-            continue  # Skip if the DataFrame is empty due to JSON error
+        logger.info(f"Processing JSON path: {json_path} (type: {type(json_path).__name__})")
+        if not isinstance(json_path, str):
+            logger.error(f"Invalid JSON path type: {type(json_path).__name__}, expected str")
+            continue
+            
+        try:
+            df = load_and_clean_data(json_path)
+            if df.empty:
+                logger.warning(f"Empty DataFrame for {json_path}, skipping")
+                continue  # Skip if the DataFrame is empty due to JSON error
 
-        # Filter by time window
-        original_count = len(df)
-        df = df[df['real_time_seconds'] >= start_time]
-        if end_time != -1:
-            df = df[df['real_time_seconds'] <= end_time]
-        logger.debug(f"Using {len(df)} of {original_count} data points after time filtering")
+            # Filter by time window
+            original_count = len(df)
+            df = df[df['real_time_seconds'] >= start_time]
+            if end_time != -1:
+                df = df[df['real_time_seconds'] <= end_time]
+            logger.debug(f"Using {len(df)} of {original_count} data points after time filtering")
 
-        # Calculate acceleration using 30-frame distance
-        sh_speed_col = 'superheavy.speed' if 'superheavy.speed' in df.columns else 'superheavy_speed'
-        ss_speed_col = 'starship.speed' if 'starship.speed' in df.columns else 'starship_speed'
-        
-        df['superheavy_acceleration'] = compute_acceleration(df, sh_speed_col)
-        df['starship_acceleration'] = compute_acceleration(df, ss_speed_col)
+            # Calculate acceleration using 30-frame distance
+            sh_speed_col = 'superheavy.speed' if 'superheavy.speed' in df.columns else 'superheavy_speed'
+            ss_speed_col = 'starship.speed' if 'starship.speed' in df.columns else 'starship_speed'
+            
+            df['superheavy_acceleration'] = compute_acceleration(df, sh_speed_col)
+            df['starship_acceleration'] = compute_acceleration(df, ss_speed_col)
 
-        # Calculate G-forces
-        df['superheavy_g_force'] = compute_g_force(df['superheavy_acceleration'])
-        df['starship_g_force'] = compute_g_force(df['starship_acceleration'])
+            # Calculate G-forces
+            df['superheavy_g_force'] = compute_g_force(df['superheavy_acceleration'])
+            df['starship_g_force'] = compute_g_force(df['starship_acceleration'])
 
-        df_list.append(df)
-        launch_id = extract_launch_number(json_path)
-        labels.append(f'Launch {launch_id}')  # Capitalize 'launch'
-        logger.info(f"Successfully processed launch {launch_id}")
+            df_list.append(df)
+            launch_id = extract_launch_number(json_path)
+            labels.append(f'Launch {launch_id}')  # Capitalize 'launch'
+            logger.info(f"Successfully processed launch {launch_id}")
+        except Exception as e:
+            logger.error(f"Error processing {json_path}: {str(e)}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
     if not df_list:
         logger.error("No valid data available for comparison. Exiting.")
         return
     
+    logger.info(f"Successfully loaded {len(df_list)} launches for comparison: {labels}")
+    
     # Sort labels and create folder name
-    labels.sort()
+    labels_with_dfs = list(zip(labels, df_list))
+    labels_with_dfs.sort(key=lambda x: x[0])
+    labels = [label for label, _ in labels_with_dfs]
+    df_list = [df for _, df in labels_with_dfs]
+    
     folder_name = os.path.join(
         "results", "compare_launches", f"launches_{'_'.join([l.replace('Launch ', '') for l in labels])}")
     logger.info(f"Creating comparison plots in folder {folder_name}")
@@ -205,3 +234,7 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
                                    labels, x_axis, y_axis, show_figures=show_figures)
     
     logger.info("Completed all comparison plots")
+    
+    # Show the interactive viewer if requested
+    if show_figures and 'viewer' in locals():
+        viewer.show()

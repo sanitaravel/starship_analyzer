@@ -69,7 +69,7 @@ def create_engine_group_plot(df: pd.DataFrame, vehicle: str, folder: str, launch
     logger.info(f"Creating engine plot: {title}")
     
     # Create figure (fullscreen)
-    plt.figure(figsize=FIGURE_SIZE)
+    fig = plt.figure(figsize=FIGURE_SIZE)
     
     # Plot engine data
     for group in vehicle_params["groups"]:
@@ -93,12 +93,19 @@ def create_engine_group_plot(df: pd.DataFrame, vehicle: str, folder: str, launch
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved {vehicle} engine plot to {save_path}")
 
+    # If we're showing figures, check for interactive viewer
     if show_figures:
-        # Maximize window when showing figures
-        maximize_figure_window()
-        plt.show()
+        # Check if we're in interactive mode (viewer exists in the caller's context)
+        from inspect import currentframe, getouterframes
+        frame = currentframe().f_back
+        if 'viewer' in frame.f_locals:
+            frame.f_locals['viewer'].add_figure(fig, title)
+        else:
+            # Fall back to regular display
+            maximize_figure_window()
+            plt.show()
     else:
-        plt.close()
+        plt.close(fig)
 
 
 def create_engine_timeline_plot(df: pd.DataFrame, folder: str, launch_number: str, show_figures: bool = True):
@@ -144,7 +151,7 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
     os.makedirs(folder, exist_ok=True)
 
     # Create figure (fullscreen)
-    plt.figure(figsize=FIGURE_SIZE)
+    fig = plt.figure(figsize=FIGURE_SIZE)
 
     # Create scatter plot with seaborn
     data_count = df[y].notna().sum()
@@ -185,12 +192,20 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved scatter plot to {save_path}")
 
+    # If showing figures, add to interactive viewer instead of displaying
     if show_figures:
-        # Maximize window when showing figures
-        maximize_figure_window()
-        plt.show()
+        # Check if we're in interactive mode (viewer exists in the caller's context)
+        from inspect import currentframe, getouterframes
+        frame = currentframe().f_back
+        if 'viewer' in frame.f_locals:
+            # Add the figure to the viewer
+            frame.f_locals['viewer'].add_figure(fig, title_with_launch)
+        else:
+            # Fall back to regular display
+            maximize_figure_window()
+            plt.show()
     else:
-        plt.close()
+        plt.close(fig)
 
 
 def create_engine_performance_correlation(df: pd.DataFrame, vehicle: str, folder: str, launch_number: str, show_figures: bool = True) -> None:
@@ -211,7 +226,7 @@ def create_engine_performance_correlation(df: pd.DataFrame, vehicle: str, folder
     logger.info(f"Creating engine performance correlation plot: {title_with_launch}")
     
     # Create figure (fullscreen)
-    plt.figure(figsize=FIGURE_SIZE)
+    fig = plt.figure(figsize=FIGURE_SIZE)
 
     # Create advanced scatter plot with seaborn
     data_count = df[[params['x_col'], params['y_col'], params['color_col']]].dropna().shape[0]
@@ -244,12 +259,19 @@ def create_engine_performance_correlation(df: pd.DataFrame, vehicle: str, folder
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved correlation plot to {save_path}")
 
+    # If showing figures, check for interactive viewer
     if show_figures:
-        # Maximize window when showing figures
-        maximize_figure_window()
-        plt.show()
+        # Check if we're in interactive mode (viewer exists in the caller's context)
+        from inspect import currentframe, getouterframes
+        frame = currentframe().f_back
+        if 'viewer' in frame.f_locals:
+            frame.f_locals['viewer'].add_figure(fig, title_with_launch)
+        else:
+            # Fall back to regular display
+            maximize_figure_window()
+            plt.show()
     else:
-        plt.close()
+        plt.close(fig)
 
 
 def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, show_figures: bool = True) -> None:
@@ -269,6 +291,13 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
         logger.error("DataFrame is empty, cannot generate plots")
         return  # Exit if the DataFrame is empty due to JSON error
 
+    # Create interactive viewer if showing figures
+    launch_number = extract_launch_number(json_path)
+    viewer = None
+    if show_figures:
+        from .interactive_viewer import show_plots_interactively
+        viewer = show_plots_interactively(f"Launch {launch_number} - Flight Data Visualization")
+
     # Filter data by time window
     original_count = len(df)
     df = df[df['real_time_seconds'] >= start_time]
@@ -279,46 +308,97 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
     # Set all Superheavy's data to None after 7 minutes and 30 seconds
     seven_minutes = 7 * 60 + 30  # 7 minutes and 30 seconds in seconds
     logger.debug(f"Nullifying Superheavy data after {seven_minutes}s (post-separation)")
-
+    
     # Check which column naming scheme is used and set values accordingly
     speed_col = 'superheavy.speed' if 'superheavy.speed' in df.columns else 'superheavy_speed'
     alt_col = 'superheavy.altitude' if 'superheavy.altitude' in df.columns else 'superheavy_altitude'
     nullified_count = df[df['real_time_seconds'] > seven_minutes].shape[0]
     df.loc[df['real_time_seconds'] > seven_minutes, [speed_col, alt_col]] = None
     logger.debug(f"Nullified {nullified_count} data points for Superheavy after separation")
-
-    # Calculate acceleration using 30-frame distance
+    
     # Make sure to use the correct column names
     sh_speed_col = 'superheavy.speed' if 'superheavy.speed' in df.columns else 'superheavy_speed'
     ss_speed_col = 'starship.speed' if 'starship.speed' in df.columns else 'starship_speed'
-
+    
     df['superheavy_acceleration'] = compute_acceleration(df, sh_speed_col)
     df['starship_acceleration'] = compute_acceleration(df, ss_speed_col)
 
     # Calculate G-forces
     df['superheavy_g_force'] = compute_g_force(df['superheavy_acceleration'])
     df['starship_g_force'] = compute_g_force(df['starship_acceleration'])
-
+    
     # Determine the folder name based on the launch number
-    launch_number = extract_launch_number(json_path)
     folder = os.path.join("results", f"launch_{launch_number}")
     logger.info(f"Creating plots for launch {launch_number} in folder {folder}")
-
-    # Create specialized engine timeline plots
-    create_engine_timeline_plot(df, folder, launch_number, show_figures)
-
+    
+    # Create engine timeline plots - create separately and add to viewer
+    # Superheavy engine plot
+    logger.info(f"Creating engine timeline plots for Launch {launch_number}")
+    
+    # Create Superheavy engine plot
+    fig_sh = plt.figure(figsize=FIGURE_SIZE)
+    vehicle_params = ENGINE_TIMELINE_PARAMS["superheavy"]
+    for group in vehicle_params["groups"]:
+        sns.lineplot(x='real_time_seconds', y=group["column"], data=df,
+                    label=group["label"], marker='o', 
+                    alpha=MARKER_ALPHA, color=group["color"],
+                    linewidth=LINE_WIDTH if "All" in group["label"] else LINE_WIDTH-0.5)
+    plt.title(f"Launch {launch_number} - {vehicle_params['title']}", fontsize=TITLE_FONT_SIZE)
+    plt.xlabel(ENGINE_TIMELINE_PARAMS["xlabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(vehicle_params["ylabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylim(*vehicle_params["ylim"])
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
+    plt.legend(fontsize=LEGEND_FONT_SIZE)
+    plt.tight_layout()
+    
+    # Save figure
+    os.makedirs(folder, exist_ok=True)
+    plt.savefig(f"{folder}/superheavy_engine_timeline.png", dpi=300, bbox_inches='tight')
+    
+    # Add to viewer if showing figures
+    if show_figures and viewer:
+        viewer.add_figure(fig_sh, f"Launch {launch_number} - {vehicle_params['title']}")
+    plt.close(fig_sh)
+    
+    # Create Starship engine plot
+    fig_ss = plt.figure(figsize=FIGURE_SIZE)
+    vehicle_params = ENGINE_TIMELINE_PARAMS["starship"]
+    for group in vehicle_params["groups"]:
+        sns.lineplot(x='real_time_seconds', y=group["column"], data=df,
+                    label=group["label"], marker='o', 
+                    alpha=MARKER_ALPHA, color=group["color"],
+                    linewidth=LINE_WIDTH if "All" in group["label"] else LINE_WIDTH-0.5)
+    plt.title(f"Launch {launch_number} - {vehicle_params['title']}", fontsize=TITLE_FONT_SIZE)
+    plt.xlabel(ENGINE_TIMELINE_PARAMS["xlabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(vehicle_params["ylabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylim(*vehicle_params["ylim"])
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
+    plt.legend(fontsize=LEGEND_FONT_SIZE)
+    plt.tight_layout()
+    
+    # Save figure
+    plt.savefig(f"{folder}/starship_engine_timeline.png", dpi=300, bbox_inches='tight')
+    
+    # Add to viewer if showing figures
+    if show_figures and viewer:
+        viewer.add_figure(fig_ss, f"Launch {launch_number} - {vehicle_params['title']}")
+    plt.close(fig_ss)
+    
     # Create correlation plots between engine activity and performance
     create_engine_performance_correlation(df, "superheavy", folder, launch_number, show_figures)
     create_engine_performance_correlation(df, "starship", folder, launch_number, show_figures)
-
+    
     # Create standard plots based on parameters from constants
     logger.info(f"Creating {len(ANALYZE_RESULTS_PLOT_PARAMS)} standard plot types")
     for params in ANALYZE_RESULTS_PLOT_PARAMS:
         if len(params) == 5:
-            # Add launch number as the last argument before show_figures
             create_scatter_plot(df, *params, folder, launch_number, show_figures)
         else:
             # Unpack: x, y, title, filename, label, x_axis, y_axis.
             create_scatter_plot(df, *params, folder, launch_number, show_figures)
     
     logger.info(f"Completed all plots for launch {launch_number}")
+    
+    # Show the interactive viewer if requested
+    if show_figures and viewer:
+        viewer.show()

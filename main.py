@@ -204,7 +204,7 @@ def compare_multiple_launches_menu():
     logger.debug(f"Comparing launches: {', '.join(answers['launches'])}")
     logger.debug(f"Time window: {start_time} to {end_time}")
     
-    compare_multiple_launches(start_time, end_time, json_paths, show_figures=answers['show_figures'])
+    compare_multiple_launches(start_time, end_time, *json_paths, show_figures=answers['show_figures'])
     return True
 
 
