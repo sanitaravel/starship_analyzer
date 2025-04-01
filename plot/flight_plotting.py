@@ -5,82 +5,123 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force
-from constants import ANALYZE_RESULTS_PLOT_PARAMS
+from constants import (ANALYZE_RESULTS_PLOT_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
+                      SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, LEGEND_FONT_SIZE, TICK_FONT_SIZE,
+                      MARKER_SIZE, MARKER_ALPHA, LINE_WIDTH, LINE_ALPHA, 
+                      ENGINE_TIMELINE_PARAMS, ENGINE_PERFORMANCE_PARAMS)
 from utils import extract_launch_number
 from logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
 
-# Set seaborn style globally for all plots
+# Set seaborn style globally for all plots - slightly bigger font size
 sns.set_theme(style="whitegrid", context="talk",
               palette="colorblind", font_scale=1.1)
 
 
-def create_engine_timeline_plot(df: pd.DataFrame, folder: str, title: str = "Engine Activity Timeline", show_figures: bool = True):
+def maximize_figure_window():
     """
-    Create a specialized plot showing engine activity over time using seaborn.
+    Maximize the current figure window to take all available screen space without going full screen.
+    This preserves window decorations and taskbar visibility.
+    """
+    try:
+        # Get the figure manager
+        fig_manager = plt.get_current_fig_manager()
+        
+        # Try different approaches based on backend, prioritizing maximize over full screen
+        if hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'showMaximized'):
+            # Qt backend (most common)
+            fig_manager.window.showMaximized()
+        elif hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'state') and hasattr(fig_manager.window, 'tk'):
+            # TkAgg backend
+            fig_manager.window.state('zoomed')  # Windows 'zoomed' state
+        elif hasattr(fig_manager, 'frame') and hasattr(fig_manager.frame, 'Maximize'):
+            # WX backend
+            fig_manager.frame.Maximize(True)
+        elif hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'maximize'):
+            # Other backends with maximize function
+            fig_manager.window.maximize()
+        elif hasattr(fig_manager, 'full_screen_toggle'):
+            # Only use full screen as a last resort
+            logger.debug("Using full_screen_toggle as fallback")
+            fig_manager.full_screen_toggle()
+        elif hasattr(fig_manager, 'resize'):
+            # MacOSX backend
+            fig_manager.resize(*fig_manager.window.get_screen().get_size())
+    except Exception as e:
+        logger.debug(f"Could not maximize window: {str(e)}")
 
+
+def create_engine_group_plot(df: pd.DataFrame, vehicle: str, folder: str, launch_number: str, show_figures: bool = True):
+    """
+    Create a plot for a specific engine group (Superheavy or Starship).
+    
     Args:
         df (pd.DataFrame): DataFrame with processed engine data
+        vehicle (str): Either "superheavy" or "starship"
         folder (str): Folder to save the plot
-        title (str): Title for the plot
+        launch_number (str): Launch number to include in the title
         show_figures (bool): Whether to display the figures
     """
-    logger.info(f"Creating engine timeline plot: {title}")
+    vehicle_params = ENGINE_TIMELINE_PARAMS[vehicle]
+    title = f"Launch {launch_number} - {vehicle_params['title']}"
+    logger.info(f"Creating engine plot: {title}")
     
-    # Create figure
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
+    # Create figure (fullscreen)
+    plt.figure(figsize=FIGURE_SIZE)
+    
+    # Plot engine data
+    for group in vehicle_params["groups"]:
+        sns.lineplot(x='real_time_seconds', y=group["column"], data=df,
+                    label=group["label"], marker='o', 
+                    alpha=MARKER_ALPHA, color=group["color"],
+                    linewidth=LINE_WIDTH if "All" in group["label"] else LINE_WIDTH-0.5)
 
-    # Plot Superheavy engine data using raw counts with seaborn
-    sns.lineplot(x='real_time_seconds', y='superheavy_central_active', data=df,
-                 label='Central Stack (max 3)', ax=ax1, marker='o', alpha=0.6, color='red')
-    sns.lineplot(x='real_time_seconds', y='superheavy_inner_active', data=df,
-                 label='Inner Ring (max 10)', ax=ax1, marker='o', alpha=0.6, color='green')
-    sns.lineplot(x='real_time_seconds', y='superheavy_outer_active', data=df,
-                 label='Outer Ring (max 20)', ax=ax1, marker='o', alpha=0.6, color='blue')
-    sns.lineplot(x='real_time_seconds', y='superheavy_all_active', data=df,
-                 label='All Engines (max 33)', ax=ax1, marker='o', linewidth=2.5, color='black')
-
-    ax1.set_title('Superheavy Engine Activity')
-    ax1.set_ylabel('Active Engines (count)')
-    # Set y-axis limit to slightly above max engine count (33)
-    ax1.set_ylim(0, 35)
-
-    # Plot Starship engine data using raw counts with seaborn
-    sns.lineplot(x='real_time_seconds', y='starship_rearth_active', data=df,
-                 label='Raptor Earth (max 3)', ax=ax2, marker='o', alpha=0.6, color='red')
-    sns.lineplot(x='real_time_seconds', y='starship_rvac_active', data=df,
-                 label='Raptor Vacuum (max 3)', ax=ax2, marker='o', alpha=0.6, color='green')
-    sns.lineplot(x='real_time_seconds', y='starship_all_active', data=df,
-                 label='All Engines (max 6)', ax=ax2, marker='o', linewidth=2.5, color='black')
-
-    ax2.set_title('Starship Engine Activity')
-    ax2.set_xlabel('Real Time (s)')
-    ax2.set_ylabel('Active Engines (count)')
-    # Set y-axis limit to slightly above max engine count (6)
-    ax2.set_ylim(0, 7)
-
-    # Add overall title
-    fig.suptitle(title, fontsize=16)
-    # Adjust layout to make room for suptitle
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.title(title, fontsize=TITLE_FONT_SIZE)
+    plt.xlabel(ENGINE_TIMELINE_PARAMS["xlabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(vehicle_params["ylabel"], fontsize=LABEL_FONT_SIZE)
+    plt.ylim(*vehicle_params["ylim"])
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
+    plt.legend(fontsize=LEGEND_FONT_SIZE)
+    plt.tight_layout()
 
     # Save figure
     os.makedirs(folder, exist_ok=True)
-    save_path = f"{folder}/engine_timeline.png"
+    vehicle_name = "superheavy" if vehicle == "superheavy" else "starship"
+    save_path = f"{folder}/{vehicle_name}_engine_timeline.png"
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    logger.info(f"Saved engine timeline plot to {save_path}")
+    logger.info(f"Saved {vehicle} engine plot to {save_path}")
 
     if show_figures:
+        # Maximize window when showing figures
+        maximize_figure_window()
         plt.show()
     else:
         plt.close()
 
 
-def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: str, label: str, x_axis: str, y_axis: str, folder: str, show_figures: bool) -> None:
+def create_engine_timeline_plot(df: pd.DataFrame, folder: str, launch_number: str, show_figures: bool = True):
     """
-    Create and save a scatter plot for the original and smoothed data using seaborn.
+    Create separate engine activity plots for Superheavy and Starship.
+
+    Args:
+        df (pd.DataFrame): DataFrame with processed engine data
+        folder (str): Folder to save the plot
+        launch_number (str): Launch number to include in the title
+        show_figures (bool): Whether to display the figures
+    """
+    logger.info(f"Creating engine timeline plots for Launch {launch_number}")
+    
+    # Create separate plots for Superheavy and Starship
+    create_engine_group_plot(df, "superheavy", folder, launch_number, show_figures)
+    create_engine_group_plot(df, "starship", folder, launch_number, show_figures)
+
+
+def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: str, label: str, 
+                        x_axis: str, y_axis: str, folder: str, launch_number: str, show_figures: bool) -> None:
+    """
+    Create and save a scatter plot for the data using seaborn.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
@@ -92,50 +133,52 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
         x_axis (str): The label for the x-axis.
         y_axis (str): The label for the y-axis.
         folder (str): The folder to save the graph in.
+        launch_number (str): Launch number to include in the title
+        show_figures (bool): Whether to display the figures.
     """
-    logger.info(f"Creating scatter plot: {title}")
+    # Add launch number to the beginning of the title
+    title_with_launch = f"Launch {launch_number} - {title}"
+    logger.info(f"Creating scatter plot: {title_with_launch}")
     
     # Create plots directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
 
-    # Create figure with seaborn styling
-    plt.figure(figsize=(16, 9))
+    # Create figure (fullscreen)
+    plt.figure(figsize=FIGURE_SIZE)
 
     # Create scatter plot with seaborn
     data_count = df[y].notna().sum()
     logger.debug(f"Plotting {data_count} data points for {y}")
     
-    scatter_plot = sns.scatterplot(x=x, y=y, data=df, label=f"{label} (Raw Data)",
-                                   s=30, alpha=0.3, edgecolor=None)
+    scatter_plot = sns.scatterplot(x=x, y=y, data=df, label=f"{label}",
+                                   s=MARKER_SIZE, alpha=MARKER_ALPHA, edgecolor=None)
 
-    # Add trendline for acceleration and g-force plots
+    # Add trendline only for acceleration and g-force plots
     if 'acceleration' in y or 'g_force' in y:
         # Only use non-null values for the trendline
         valid_data = df[[x, y]].dropna()
 
-        if len(valid_data) > 10:  # Only add trendline if we have enough data points
-            logger.debug(f"Adding LOWESS trendline using {len(valid_data)} valid data points")
-            # Use LOWESS to create a smooth trendline
-            z = lowess(valid_data[y], valid_data[x], frac=0.01)
+        if len(valid_data) > 30:  # Only add trendline if we have enough data points
+            logger.debug(f"Adding 30-point rolling window trendline")
+            
+            # Sort data by x-axis value to ensure proper rolling window calculation
+            valid_data = valid_data.sort_values(by=x)
+            
+            # Use pandas rolling window (30 points) instead of LOWESS smoothing
+            valid_data['trend'] = valid_data[y].rolling(window=30, center=True, min_periods=5).mean()
+            
+            # Plot the rolling average trendline
+            plt.plot(valid_data[x], valid_data['trend'], color='crimson',
+                     linewidth=LINE_WIDTH, label=f"{label} (30-point Rolling Average)")
 
-            # Add trendline with seaborn styling
-            plt.plot(z[:, 0], z[:, 1], color='crimson',
-                     linewidth=2.5, label=f"{label} (Trend)")
-
-    # Add NASA's G limit lines for G-force plots
-    if 'g_force' in y:
-        logger.debug("Adding NASA G-force limit lines at ±4.5G")
-        plt.axhline(y=4.5, color='red', linestyle='--', linewidth=2,
-                    label="NASA's 4.5G Maximum Sustained Acceleration Limit")
-        plt.axhline(y=-4.5, color='red', linestyle='--', linewidth=2)
-
-    # Set labels with seaborn styling
-    plt.xlabel(x_axis if x_axis else x.capitalize(), fontsize=12)
-    plt.ylabel(y_axis if y_axis else y.capitalize(), fontsize=12)
-    plt.title(title, fontsize=14, fontweight='bold')
+    # Set labels with consistent styling
+    plt.xlabel(x_axis, fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(y_axis, fontsize=LABEL_FONT_SIZE)
+    plt.title(title_with_launch, fontsize=TITLE_FONT_SIZE)
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
 
     # Add legend with improved visibility
-    plt.legend(frameon=True, fontsize=10)
+    plt.legend(frameon=True, fontsize=LEGEND_FONT_SIZE)
 
     # Save with high quality
     save_path = f"{folder}/{filename}"
@@ -143,75 +186,67 @@ def create_scatter_plot(df: pd.DataFrame, x: str, y: str, title: str, filename: 
     logger.info(f"Saved scatter plot to {save_path}")
 
     if show_figures:
+        # Maximize window when showing figures
+        maximize_figure_window()
         plt.show()
     else:
         plt.close()
 
 
-def create_engine_performance_correlation(df: pd.DataFrame,
-                                          x_col: str = 'real_time_seconds',
-                                          y_col: str = 'superheavy.speed',
-                                          color_col: str = 'superheavy_all_active',
-                                          title: str = 'Speed vs. Engine Activity',
-                                          x_label: str = 'Time (s)',
-                                          y_label: str = 'Speed (km/h)',
-                                          color_label: str = 'Active Engines (count)',
-                                          filename: str = 'engine_speed_correlation.png',
-                                          folder: str = 'results',
-                                          cmap: str = 'viridis',
-                                          alpha: float = 0.7,
-                                          point_size: int = 50,
-                                          show_figures: bool = True) -> None:
+def create_engine_performance_correlation(df: pd.DataFrame, vehicle: str, folder: str, launch_number: str, show_figures: bool = True) -> None:
     """
     Create a plot showing correlation between engine activity and vehicle performance using seaborn.
-    """
-    logger.info(f"Creating engine performance correlation plot: {title}")
     
-    # Create figure with seaborn styling
-    plt.figure(figsize=(16, 9))
+    Args:
+        df (pd.DataFrame): DataFrame with processed data
+        vehicle (str): Either "superheavy" or "starship"
+        folder (str): Folder to save the plot
+        launch_number (str): Launch number to include in the title
+        show_figures (bool): Whether to display the figures
+    """
+    params = ENGINE_PERFORMANCE_PARAMS[vehicle]
+    
+    # Add launch number to the beginning of the title
+    title_with_launch = f"Launch {launch_number} - {params['title']}"
+    logger.info(f"Creating engine performance correlation plot: {title_with_launch}")
+    
+    # Create figure (fullscreen)
+    plt.figure(figsize=FIGURE_SIZE)
 
     # Create advanced scatter plot with seaborn
-    data_count = df[[x_col, y_col, color_col]].dropna().shape[0]
-    logger.debug(f"Plotting {data_count} data points for correlation between {y_col} and {color_col}")
+    data_count = df[[params['x_col'], params['y_col'], params['color_col']]].dropna().shape[0]
+    logger.debug(f"Plotting {data_count} data points for correlation")
     
     scatter = sns.scatterplot(
-        x=x_col,
-        y=y_col,
-        hue=color_col,
-        size=color_col,
-        sizes=(20, 200),  # Range of point sizes
-        palette=cmap,     # Use colormap
-        alpha=alpha,      # Transparency
+        x=params['x_col'],
+        y=params['y_col'],
+        hue=params['color_col'],
+        size=params['color_col'],
+        sizes=(MARKER_SIZE, MARKER_SIZE*4),  # Range of point sizes
+        palette=params['cmap'],     # Use colormap
+        alpha=MARKER_ALPHA,  # Transparency
         data=df           # Data source
     )
 
     # Add a legend with custom title
-    legend = scatter.legend(title=color_label, fontsize=10)
-    plt.setp(legend.get_title(), fontsize=12)
+    legend = scatter.legend(title=params['color_label'], fontsize=LEGEND_FONT_SIZE)
+    plt.setp(legend.get_title(), fontsize=LEGEND_FONT_SIZE+1)
 
-    # Add labels and title with seaborn styling
-    plt.xlabel(x_label, fontsize=12)
-    plt.ylabel(y_label, fontsize=12)
-    plt.title(title, fontsize=14, fontweight='bold')
-
-    # Add smoothed trend line
-    try:
-        # Try to add a trend line if we have valid data
-        valid_data = df[[x_col, y_col]].dropna()
-        if len(valid_data) > 10:
-            logger.debug(f"Adding regression trend line using {len(valid_data)} valid data points")
-            sns.regplot(x=x_col, y=y_col, data=df, scatter=False,
-                        line_kws={"color": "red", "alpha": 0.7, "lw": 2, "linestyle": "--"})
-    except Exception as e:
-        logger.warning(f"Could not add trend line: {str(e)}")
+    # Add labels and title with consistent styling
+    plt.xlabel(params['x_label'], fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(params['y_label'], fontsize=LABEL_FONT_SIZE)
+    plt.title(title_with_launch, fontsize=TITLE_FONT_SIZE)
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
 
     # Save figure with high quality
     os.makedirs(folder, exist_ok=True)
-    save_path = f"{folder}/{filename}"
+    save_path = f"{folder}/{params['filename']}"
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     logger.info(f"Saved correlation plot to {save_path}")
 
     if show_figures:
+        # Maximize window when showing figures
+        maximize_figure_window()
         plt.show()
     else:
         plt.close()
@@ -269,48 +304,21 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
     folder = os.path.join("results", f"launch_{launch_number}")
     logger.info(f"Creating plots for launch {launch_number} in folder {folder}")
 
-    # Create specialized engine timeline plot
-    create_engine_timeline_plot(
-        df, folder, f"Launch {launch_number} - Engine Activity Timeline", show_figures)
+    # Create specialized engine timeline plots
+    create_engine_timeline_plot(df, folder, launch_number, show_figures)
 
-    # Create correlation plots between engine activity and performance using the reusable function
-    # Superheavy correlation
-    create_engine_performance_correlation(
-        df=df,
-        x_col='real_time_seconds',
-        y_col='superheavy.speed',
-        color_col='superheavy_all_active',
-        title='Superheavy Speed vs. Engine Activity',
-        x_label='Real Time (s)',
-        y_label='Speed (km/h)',
-        color_label='Active Engines (count)',
-        filename='superheavy_engine_speed_correlation.png',
-        folder=folder,
-        show_figures=show_figures
-    )
+    # Create correlation plots between engine activity and performance
+    create_engine_performance_correlation(df, "superheavy", folder, launch_number, show_figures)
+    create_engine_performance_correlation(df, "starship", folder, launch_number, show_figures)
 
-    # Starship correlation
-    create_engine_performance_correlation(
-        df=df,
-        x_col='real_time_seconds',
-        y_col='starship.speed',
-        color_col='starship_all_active',
-        title='Starship Speed vs. Engine Activity',
-        x_label='Real Time (s)',
-        y_label='Speed (km/h)',
-        color_label='Active Engines (count)',
-        filename='starship_engine_speed_correlation.png',
-        folder=folder,
-        show_figures=show_figures
-    )
-
-    # Updated plotting: if tuple has 7 items, pass x_axis and y_axis labels.
+    # Create standard plots based on parameters from constants
     logger.info(f"Creating {len(ANALYZE_RESULTS_PLOT_PARAMS)} standard plot types")
     for params in ANALYZE_RESULTS_PLOT_PARAMS:
         if len(params) == 5:
-            create_scatter_plot(df, *params, folder, show_figures)
+            # Add launch number as the last argument before show_figures
+            create_scatter_plot(df, *params, folder, launch_number, show_figures)
         else:
             # Unpack: x, y, title, filename, label, x_axis, y_axis.
-            create_scatter_plot(df, *params, folder, show_figures)
+            create_scatter_plot(df, *params, folder, launch_number, show_figures)
     
     logger.info(f"Completed all plots for launch {launch_number}")

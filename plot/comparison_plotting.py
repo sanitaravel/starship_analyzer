@@ -5,16 +5,51 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force
-from constants import PLOT_MULTIPLE_LAUNCHES_PARAMS
+from constants import (PLOT_MULTIPLE_LAUNCHES_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
+                      SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, LEGEND_FONT_SIZE, TICK_FONT_SIZE,
+                      MARKER_SIZE, MARKER_ALPHA, LINE_WIDTH, LINE_ALPHA)
 from utils import extract_launch_number
 from logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
 
-# Set seaborn style globally for all plots
+# Set seaborn style globally for all plots - slightly bigger font size
 sns.set_theme(style="whitegrid", context="talk",
               palette="colorblind", font_scale=1.1)
+
+
+def maximize_figure_window():
+    """
+    Maximize the current figure window to take all available screen space without going full screen.
+    This preserves window decorations and taskbar visibility.
+    """
+    try:
+        # Get the figure manager
+        fig_manager = plt.get_current_fig_manager()
+        
+        # Try different approaches based on backend, prioritizing maximize over full screen
+        if hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'showMaximized'):
+            # Qt backend (most common)
+            fig_manager.window.showMaximized()
+        elif hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'state') and hasattr(fig_manager.window, 'tk'):
+            # TkAgg backend
+            fig_manager.window.state('zoomed')  # Windows 'zoomed' state
+        elif hasattr(fig_manager, 'frame') and hasattr(fig_manager.frame, 'Maximize'):
+            # WX backend
+            fig_manager.frame.Maximize(True)
+        elif hasattr(fig_manager, 'window') and hasattr(fig_manager.window, 'maximize'):
+            # Other backends with maximize function
+            fig_manager.window.maximize()
+        elif hasattr(fig_manager, 'full_screen_toggle'):
+            # Only use full screen as a last resort
+            logger.debug("Using full_screen_toggle as fallback")
+            fig_manager.full_screen_toggle()
+        elif hasattr(fig_manager, 'resize'):
+            # MacOSX backend
+            fig_manager.resize(*fig_manager.window.get_screen().get_size())
+    except Exception as e:
+        logger.debug(f"Could not maximize window: {str(e)}")
 
 
 def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: str, folder: str,
@@ -37,13 +72,13 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
     logger.info(f"Creating multi-launch comparison plot: {title}")
     logger.debug(f"Comparing {len(df_list)} launches: {', '.join(labels)}")
     
-    # Create figure with seaborn styling
-    plt.figure(figsize=(16, 9))
+    # Create figure (fullscreen)
+    plt.figure(figsize=FIGURE_SIZE)
 
     # Custom color palette with distinct colors for each launch
     palette = sns.color_palette("husl", len(df_list))
 
-    # Plot each dataset with both scatter points and trendline
+    # Plot each dataset with appropriate styling
     for i, (df, label) in enumerate(zip(df_list, labels)):
         color = palette[i]
         
@@ -56,47 +91,36 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
             x=x,
             y=y,
             data=df,
-            label=f"{label} (Raw)",
+            label=f"{label}",
             color=color,
-            alpha=0.3,
-            s=30
+            alpha=MARKER_ALPHA,
+            s=MARKER_SIZE
         )
 
-        # Add trendline for acceleration and g-force plots
-        if 'acceleration' in y or 'g_force' in y:
+        # Add trendline only for acceleration and g-force plots
+        if ('acceleration' in y or 'g_force' in y) and len(df[[x, y]].dropna()) > 30:
             # Only use non-null values for the trendline
             valid_data = df[[x, y]].dropna()
+            logger.debug(f"Launch {label}: Adding 30-point rolling window trendline")
+            
+            # Sort data by x-axis value to ensure proper rolling window calculation
+            valid_data = valid_data.sort_values(by=x)
+            
+            # Use pandas rolling window (30 points) instead of LOWESS smoothing
+            valid_data['trend'] = valid_data[y].rolling(window=30, center=True, min_periods=5).mean()
+            
+            # Plot the rolling average trendline
+            plt.plot(valid_data[x], valid_data['trend'], '-', linewidth=LINE_WIDTH,
+                     label=f"{label} (30-point Rolling Avg)", color=color)
 
-            if len(valid_data) > 10:  # Only add trendline if we have enough data points
-                logger.debug(f"Launch {label}: Adding LOWESS trendline with {len(valid_data)} points")
-                # Use LOWESS to create a smooth trendline
-                z = lowess(valid_data[y], valid_data[x], frac=0.01)
-                plt.plot(z[:, 0], z[:, 1], '-', linewidth=2.5,
-                         label=f"{label} (Trend)", color=color)
-        else:
-            # For non-acceleration plots, add a smoothed line
-            try:
-                valid_data = df[[x, y]].dropna()
-                if len(valid_data) > 10:
-                    logger.debug(f"Launch {label}: Adding trend line with {len(valid_data)} points")
-                    sns.lineplot(x=x, y=y, data=df, color=color,
-                                label=f"{label} (Trend)")
-            except Exception as e:
-                logger.warning(f"Could not add trend line for {label}: {str(e)}")
-
-    # Add NASA's G limit line for G-force plots
-    if 'g_force' in y:
-        logger.debug("Adding NASA G-force limit line at 3G")
-        plt.axhline(y=3, color='red', linestyle='--', linewidth=2,
-                    label="NASA's 3G Maximum Sustained Acceleration Limit")
-
-    # Set labels with seaborn styling
-    plt.xlabel(x_axis if x_axis else x.capitalize(), fontsize=12)
-    plt.ylabel(y_axis if y_axis else y.capitalize(), fontsize=12)
-    plt.title(title, fontsize=14, fontweight='bold')
+    # Set labels with consistent styling
+    plt.xlabel(x_axis, fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(y_axis, fontsize=LABEL_FONT_SIZE)
+    plt.title(title, fontsize=TITLE_FONT_SIZE)
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
 
     # Add legend with improved visibility
-    plt.legend(frameon=True, fontsize=10)
+    plt.legend(frameon=True, fontsize=LEGEND_FONT_SIZE)
 
     # Save figure with high quality
     os.makedirs(folder, exist_ok=True)
@@ -105,6 +129,8 @@ def plot_multiple_launches(df_list: list, x: str, y: str, title: str, filename: 
     logger.info(f"Saved comparison plot to {save_path}")
 
     if show_figures:
+        # Maximize window when showing figures
+        maximize_figure_window()
         plt.show()
     else:
         plt.close()
@@ -153,7 +179,7 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
 
         df_list.append(df)
         launch_id = extract_launch_number(json_path)
-        labels.append(f'launch {launch_id}')
+        labels.append(f'Launch {launch_id}')  # Capitalize 'launch'
         logger.info(f"Successfully processed launch {launch_id}")
 
     if not df_list:
@@ -163,7 +189,7 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
     # Sort labels and create folder name
     labels.sort()
     folder_name = os.path.join(
-        "results", "compare_launches", f"launches_{'_'.join(labels)}")
+        "results", "compare_launches", f"launches_{'_'.join([l.replace('Launch ', '') for l in labels])}")
     logger.info(f"Creating comparison plots in folder {folder_name}")
 
     # Create all comparison plots defined in constants
