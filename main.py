@@ -2,6 +2,7 @@ import inquirer
 from plot import plot_flight_data, compare_multiple_launches
 from processing import process_image, process_video_frame, process_frame, iterate_through_frames
 import os
+import cv2
 from inquirer import errors
 from utils.logger import start_new_session, get_logger, set_global_log_level
 import logging
@@ -69,6 +70,48 @@ def toggle_debug_mode():
     return True
 
 
+def display_video_info(video_path):
+    """Display information about the selected video."""
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Could not open video file {video_path}")
+            return
+        
+        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # Calculate duration
+        duration_sec = frame_count / fps if fps > 0 else 0
+        hours = int(duration_sec // 3600)
+        minutes = int((duration_sec % 3600) // 60)
+        seconds = int(duration_sec % 60)
+        
+        # Get codec information
+        fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+        codec = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+        
+        cap.release()
+        
+        # Display information
+        print("\n----- Video Information -----")
+        print(f"Resolution: {width}x{height}")
+        print(f"Frame Rate: {fps:.2f} fps")
+        print(f"Total Frames: {frame_count}")
+        print(f"Duration: {hours:02d}:{minutes:02d}:{seconds:02d}")
+        print(f"Codec: {codec}")
+        print("----------------------------\n")
+        
+        logger.debug(f"Video info displayed for {video_path}: {width}x{height}, {fps:.2f} fps, {frame_count} frames")
+        
+    except Exception as e:
+        print(f"Error getting video information: {str(e)}")
+        logger.error(f"Error displaying video info: {str(e)}")
+
+
 def process_random_frame():
     """Handle the process random video frame menu option."""
     video_files = get_video_files_from_flight_recordings()
@@ -77,12 +120,21 @@ def process_random_frame():
     
     logger.debug("Starting random frame processing")
     
-    questions = [
+    # First, get the video path
+    video_question = [
         inquirer.List(
             'video_path',
             message="Select a video file",
             choices=video_files,
-        ),
+        )
+    ]
+    video_answer = inquirer.prompt(video_question)
+    
+    # Display video information
+    display_video_info(video_answer['video_path'])
+    
+    # Continue with other questions
+    questions = [
         inquirer.Confirm(
             'display_rois', message="Display ROIs?", default=False),
         inquirer.Confirm(
@@ -93,6 +145,8 @@ def process_random_frame():
             'end_time', message="End time in seconds (default: -1 for all)", validate=validate_number),
     ]
     answers = inquirer.prompt(questions)
+    answers['video_path'] = video_answer['video_path']  # Combine answers
+    
     start_time = int(answers['start_time']) if answers['start_time'] else 0
     end_time = int(answers['end_time']) if answers['end_time'] else -1
     
@@ -110,12 +164,21 @@ def process_complete_video():
     
     logger.debug("Starting complete video processing")
     
-    questions = [
+    # First, get the video path
+    video_question = [
         inquirer.List(
             'video_path',
             message="Select a video file",
             choices=video_files,
-        ),
+        )
+    ]
+    video_answer = inquirer.prompt(video_question)
+    
+    # Display video information
+    display_video_info(video_answer['video_path'])
+    
+    # Continue with other questions
+    questions = [
         inquirer.Text('launch_number', message="Launch number",
                     validate=validate_number),
         inquirer.Text('batch_size', 
@@ -126,6 +189,8 @@ def process_complete_video():
                      validate=validate_positive_number),
     ]
     answers = inquirer.prompt(questions)
+    answers['video_path'] = video_answer['video_path']  # Combine answers
+    
     batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
     sample_rate = int(answers['sample_rate']) if answers['sample_rate'] else 1
     
