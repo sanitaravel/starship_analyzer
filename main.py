@@ -121,13 +121,19 @@ def process_complete_video():
         inquirer.Text('batch_size', 
                      message="Batch size for processing (default: 10)", 
                      validate=validate_positive_number),
+        inquirer.Text('sample_rate', 
+                     message="Sample rate (process every Nth frame, default: 1)", 
+                     validate=validate_positive_number),
     ]
     answers = inquirer.prompt(questions)
     batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
+    sample_rate = int(answers['sample_rate']) if answers['sample_rate'] else 1
     
-    logger.debug(f"Processing complete video {answers['video_path']} with launch_number={answers['launch_number']}, batch_size={batch_size}")
+    logger.debug(f"Processing complete video {answers['video_path']} with launch_number={answers['launch_number']}, "
+                f"batch_size={batch_size}, sample_rate={sample_rate}")
     iterate_through_frames(
-        answers['video_path'], int(answers['launch_number']), debug=DEBUG_MODE, batch_size=batch_size)
+        answers['video_path'], int(answers['launch_number']), debug=DEBUG_MODE, 
+        batch_size=batch_size, sample_rate=sample_rate)
     return True
 
 

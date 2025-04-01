@@ -154,18 +154,20 @@ def get_video_properties(video_path: str, max_frames: Optional[int] = None) -> t
     return frame_count, fps
 
 
-def create_batches(frame_count: int, batch_size: int) -> List[List[int]]:
+def create_batches(frame_count: int, batch_size: int, sample_rate: int = 1) -> List[List[int]]:
     """
-    Create batches of frame numbers.
+    Create batches of frame numbers with optional sampling.
 
     Args:
         frame_count (int): The total number of frames.
         batch_size (int): The size of each batch.
+        sample_rate (int): The sampling rate (process every Nth frame).
 
     Returns:
         List[List[int]]: A list of batches, where each batch is a list of frame numbers.
     """
-    frame_numbers = list(range(frame_count))
+    # Generate frame numbers based on sample_rate
+    frame_numbers = list(range(0, frame_count, sample_rate))
     return [frame_numbers[i:i + batch_size] for i in range(0, len(frame_numbers), batch_size)]
 
 
@@ -302,7 +304,8 @@ def save_results(results: List[Dict], launch_number: int) -> None:
             logger.error(f"Failed to save results to backup location: {str(backup_error)}")
 
 
-def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, max_frames: Optional[int] = None, batch_size: int = 10) -> None:
+def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, 
+                          max_frames: Optional[int] = None, batch_size: int = 10, sample_rate: int = 1) -> None:
     """
     Iterate through all frames in a video and extract data.
 
@@ -313,9 +316,10 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         debug (bool): Whether to enable debug prints.
         max_frames (int, optional): The maximum number of frames to process. Defaults to None.
         batch_size (int): The number of frames to process in each batch.
+        sample_rate (int): The sampling rate (process every Nth frame). Defaults to 1.
     """
     logger.info(f"Starting video processing for launch {launch_number}")
-    logger.info(f"Video path: {video_path}, batch size: {batch_size}")
+    logger.info(f"Video path: {video_path}, batch size: {batch_size}, sample rate: 1/{sample_rate}")
     
     if debug:
         logger.debug("Debug mode is enabled for video processing")
@@ -352,9 +356,9 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
             logger.debug(f"Video codec: {codec_str}")
             cap.release()
     
-    # Create batches
-    batches = create_batches(frame_count, batch_size)
-    logger.info(f"Created {len(batches)} batches of size {batch_size}")
+    # Create batches with sampling
+    batches = create_batches(frame_count, batch_size, sample_rate)
+    logger.info(f"Created {len(batches)} batches of size {batch_size} with sampling rate 1/{sample_rate}")
     
     if debug and len(batches) > 0:
         logger.debug(f"First batch frame numbers: {batches[0]}")
