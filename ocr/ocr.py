@@ -5,7 +5,7 @@ import torch
 import os
 import threading
 from typing import Dict, Tuple, Optional
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

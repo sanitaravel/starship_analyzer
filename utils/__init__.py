@@ -1,3 +1,8 @@
+"""
+Utils package for the Starship Analyzer application.
+Contains utility functions and constants.
+"""
+
 import cv2
 import os
 import numpy as np

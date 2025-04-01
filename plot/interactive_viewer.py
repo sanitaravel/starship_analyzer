@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import tkinter as tk
 from tkinter import ttk
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

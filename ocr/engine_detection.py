@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict
-from constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
-from logger import get_logger
+from utils.constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

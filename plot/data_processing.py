@@ -2,8 +2,8 @@ import json
 import pandas as pd
 import traceback
 from tqdm import tqdm
-from constants import G_FORCE_CONVERSION
-from logger import get_logger
+from utils.constants import G_FORCE_CONVERSION
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

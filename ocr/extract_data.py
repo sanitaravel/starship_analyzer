@@ -3,7 +3,7 @@ from typing import Tuple, Dict
 from utils import display_image
 from .ocr import extract_values_from_roi
 from .engine_detection import detect_engine_status
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

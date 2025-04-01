@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from ocr import extract_data
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

@@ -3,7 +3,7 @@ import os
 import cv2
 from typing import Optional
 from ocr import extract_data
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)

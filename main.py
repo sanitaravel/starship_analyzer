@@ -3,7 +3,7 @@ from plot import plot_flight_data, compare_multiple_launches
 from processing import process_image, process_video_frame, process_frame, iterate_through_frames
 import os
 from inquirer import errors
-from logger import start_new_session, get_logger, set_global_log_level
+from utils.logger import start_new_session, get_logger, set_global_log_level
 import logging
 
 # Initialize logger

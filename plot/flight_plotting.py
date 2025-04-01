@@ -5,12 +5,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force
-from constants import (ANALYZE_RESULTS_PLOT_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
+from utils.constants import (ANALYZE_RESULTS_PLOT_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
                       SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, LEGEND_FONT_SIZE, TICK_FONT_SIZE,
                       MARKER_SIZE, MARKER_ALPHA, LINE_WIDTH, LINE_ALPHA, 
                       ENGINE_TIMELINE_PARAMS, ENGINE_PERFORMANCE_PARAMS)
 from utils import extract_launch_number
-from logger import get_logger
+from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
