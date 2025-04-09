@@ -96,10 +96,10 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
                 if frame_result["time"] and frame_result["time"].get('hours') == 0 and frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
                     zero_time_met = True
             
-            # Update progress counter if provided
+            # Update progress counter if provided - fixed to work with ValueProxy
             if progress_counter is not None:
-                with progress_counter.get_lock():
-                    progress_counter.value += 1
+                # No need to call get_lock() on ValueProxy objects
+                progress_counter.value += 1
                     
         cap.release()
         
