@@ -29,11 +29,18 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Log directory and file
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+# Change from relative to absolute path at project root level
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+LOG_DIR = os.path.join(PROJECT_ROOT, 'logs')
 LOG_FILE = os.path.join(LOG_DIR, 'starship_analyzer.log')  # Default log file, will be overridden by session-specific logs
 
 # Create the log directory if it doesn't exist
-os.makedirs(LOG_DIR, exist_ok=True)
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    if not os.access(LOG_DIR, os.W_OK):
+        print(f"Warning: No write access to log directory: {LOG_DIR}")
+except Exception as e:
+    print(f"Error creating log directory {LOG_DIR}: {e}")
 
 # Store all loggers to avoid creating duplicates
 _loggers = {}
@@ -76,9 +83,20 @@ def get_logger(name: str, level: int = None) -> logging.Logger:
         
         # File handler - use current session log file if available, otherwise use default
         log_file = CURRENT_SESSION_LOG_FILE or LOG_FILE
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        try:
+            # Use RotatingFileHandler to prevent excessive file sizes
+            file_handler = RotatingFileHandler(
+                log_file, 
+                maxBytes=10*1024*1024,  # 10 MB
+                backupCount=5
+            )
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            logger.debug(f"Logger initialized with log file: {log_file}")
+        except Exception as e:
+            # Log to console if file logging fails
+            print(f"Warning: Could not set up file logging to {log_file}: {e}")
+            logger.error(f"Failed to set up file logging: {e}")
     
     # Store logger for reuse
     _loggers[name] = logger
@@ -119,15 +137,23 @@ def _update_file_handlers(new_log_file: str) -> None:
     for logger in _loggers.values():
         # Remove existing file handlers
         for handler in logger.handlers[:]:
-            if isinstance(handler, logging.FileHandler):
+            if isinstance(handler, (logging.FileHandler, RotatingFileHandler)):
                 logger.removeHandler(handler)
         
         # Add new file handler
         formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
-        file_handler = logging.FileHandler(new_log_file)
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(logger.level)
-        logger.addHandler(file_handler)
+        try:
+            file_handler = RotatingFileHandler(
+                new_log_file,
+                maxBytes=10*1024*1024,  # 10 MB
+                backupCount=5
+            )
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logger.level)
+            logger.addHandler(file_handler)
+            logger.debug(f"Switched to log file: {new_log_file}")
+        except Exception as e:
+            logger.error(f"Failed to update file handler: {e}")
 
 def get_cpu_model() -> str:
     """
@@ -406,6 +432,12 @@ def start_new_session() -> logging.Logger:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     CURRENT_SESSION_LOG_FILE = os.path.join(LOG_DIR, f"starship_analyzer_{timestamp}.log")
     
+    # Create log directory again just to be sure
+    try:
+        os.makedirs(os.path.dirname(CURRENT_SESSION_LOG_FILE), exist_ok=True)
+    except Exception as e:
+        print(f"Error ensuring log directory exists: {e}")
+    
     # Update existing loggers to use the new file
     if _loggers:
         _update_file_handlers(CURRENT_SESSION_LOG_FILE)
@@ -418,8 +450,13 @@ def start_new_session() -> logging.Logger:
     separator = f"\n{'='*80}\n"
     root_logger.info(f"{separator}NEW SESSION STARTED AT {session_start}{separator}")
     
+    # Verify log file creation
+    if os.path.exists(CURRENT_SESSION_LOG_FILE):
+        root_logger.info(f"Log file created successfully at: {CURRENT_SESSION_LOG_FILE}")
+    else:
+        root_logger.error(f"Failed to create log file at: {CURRENT_SESSION_LOG_FILE}")
+    
     # Log system information right after session start message
-    # This will now ONLY write to the separate section, not add regular log entries
     log_system_info(root_logger)
     
     return root_logger
