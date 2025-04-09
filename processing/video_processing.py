@@ -57,7 +57,7 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
         }
 
 
-def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: bool, zero_time_met: bool) -> List[Dict]:
+def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: bool, zero_time_met: bool, progress_counter=None) -> List[Dict]:
     """
     Process a batch of frames and extract data.
 
@@ -67,6 +67,7 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
         zero_time_met (bool): Whether a frame with time 0:0:0 has been met.
+        progress_counter (multiprocessing.Value, optional): Shared counter for progress tracking.
 
     Returns:
         list: A list of dictionaries containing the extracted data for each frame.
@@ -94,6 +95,12 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
                 results.append(frame_result)
                 if frame_result["time"] and frame_result["time"].get('hours') == 0 and frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
                     zero_time_met = True
+            
+            # Update progress counter if provided
+            if progress_counter is not None:
+                with progress_counter.get_lock():
+                    progress_counter.value += 1
+                    
         cap.release()
         
         # Release GPU resources at the end of batch processing
@@ -204,33 +211,49 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
     results = []
     zero_time_met = False
     zero_time_frame = None
-
+    
+    # Calculate total number of frames to process
+    total_frames = sum(len(batch) for batch in batches)
+    
+    # Create a shared counter for progress tracking
+    manager = multiprocessing.Manager()
+    progress_counter = manager.Value('i', 0)
+    
     # Process batches with better error handling
     with ProcessPoolExecutor(max_workers=num_cores) as executor:
         futures = []
         
-        # Submit all batch jobs
+        # Submit all batch jobs with the shared counter
         for batch in batches:
             futures.append(executor.submit(process_batch, batch, video_path,
-                                         display_rois, debug, zero_time_met))
+                                         display_rois, debug, zero_time_met, progress_counter))
         
-        # Process results as they complete
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing batches"):
-            try:
-                batch_results = future.result()
-                results.extend(batch_results)
-                
-                # Check for zero time frame
-                if zero_time_frame is None:
-                    for frame_result in batch_results:
-                        if frame_result.get("time") and frame_result["time"].get('hours') == 0 and \
-                           frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
-                            zero_time_frame = frame_result["frame_number"]
-                            logger.info(f"Found zero time frame at frame {zero_time_frame}")
-                            break
-            except Exception as e:
-                logger.error(f"Error processing batch: {str(e)}")
-                logger.debug(traceback.format_exc())
+        # Create a progress bar that tracks frame processing, not batch completion
+        with tqdm(total=total_frames, desc="Processing frames") as pbar:
+            last_counter_value = 0
+            
+            # Process results as they complete
+            for future in as_completed(futures):
+                try:
+                    batch_results = future.result()
+                    results.extend(batch_results)
+                    
+                    # Update progress bar based on shared counter
+                    current_count = progress_counter.value
+                    pbar.update(current_count - last_counter_value)
+                    last_counter_value = current_count
+                    
+                    # Check for zero time frame
+                    if zero_time_frame is None:
+                        for frame_result in batch_results:
+                            if frame_result.get("time") and frame_result["time"].get('hours') == 0 and \
+                               frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
+                                zero_time_frame = frame_result["frame_number"]
+                                logger.info(f"Found zero time frame at frame {zero_time_frame}")
+                                break
+                except Exception as e:
+                    logger.error(f"Error processing batch: {str(e)}")
+                    logger.debug(traceback.format_exc())
 
     return results, zero_time_frame
 
