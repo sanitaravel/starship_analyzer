@@ -126,6 +126,18 @@ FUEL_LEVEL_PLOT_PARAMS = [
      ['LOX', 'CH4'], 'Mission Time (seconds)', 'Tank Fullness (%)')
 ]
 
+# Multi-launch comparison fuel level parameters
+COMPARE_FUEL_LEVEL_PARAMS = [
+    ('real_time_seconds', 'superheavy.fuel.lox.fullness', 'Superheavy LOX Tank Level Comparison',
+     'comparison_superheavy_lox.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'superheavy.fuel.ch4.fullness', 'Superheavy CH4 Tank Level Comparison',
+     'comparison_superheavy_ch4.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'starship.fuel.lox.fullness', 'Starship LOX Tank Level Comparison',
+     'comparison_starship_lox.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'starship.fuel.ch4.fullness', 'Starship CH4 Tank Level Comparison',
+     'comparison_starship_ch4.png', 'Mission Time (seconds)', 'Tank Fullness (%)')
+]
+
 # Multi-launch comparison plot parameters
 PLOT_MULTIPLE_LAUNCHES_PARAMS = [
     ('real_time_seconds', 'superheavy.speed', 'Superheavy Booster Velocity Comparison',
@@ -148,7 +160,8 @@ PLOT_MULTIPLE_LAUNCHES_PARAMS = [
      'comparison_superheavy_engines.png', 'Mission Time (seconds)', 'Active Engines'),
     ('real_time_seconds', 'starship_all_active', 'Starship Engine Activity Comparison',
      'comparison_starship_engines.png', 'Mission Time (seconds)', 'Active Engines'),
-    # Fuel level comparisons
+    # Fuel level comparisons are already included in COMPARE_FUEL_LEVEL_PARAMS,
+    # but we keep them here for backward compatibility
     ('real_time_seconds', 'superheavy.fuel.lox.fullness', 'Superheavy LOX Tank Level Comparison',
      'comparison_superheavy_lox.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
     ('real_time_seconds', 'superheavy.fuel.ch4.fullness', 'Superheavy CH4 Tank Level Comparison',
