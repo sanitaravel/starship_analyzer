@@ -6,6 +6,18 @@ from utils.logger import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 
+# Check if CUDA is available for GPU acceleration
+try:
+    cv2.cuda.getCudaEnabledDeviceCount()
+    CUDA_AVAILABLE = cv2.cuda.getCudaEnabledDeviceCount() > 0
+    if CUDA_AVAILABLE:
+        logger.info(f"CUDA is available for fuel level extraction with {cv2.cuda.getCudaEnabledDeviceCount()} device(s)")
+    else:
+        logger.info("CUDA is not available for fuel level extraction, using CPU")
+except:
+    CUDA_AVAILABLE = False
+    logger.info("CUDA not available in OpenCV, using CPU for fuel level extraction")
+
 # Strip coordinates (x, y) and dimensions
 STRIP_COORDS = [
     (275, 1007),  # Superheavy LOX
@@ -180,7 +192,27 @@ def extract_fuel_levels(image: np.ndarray, current_time: float = 0, debug: bool 
     try:
         # Convert to grayscale if necessary
         if len(image.shape) == 3:
-            gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if CUDA_AVAILABLE:
+                # GPU-accelerated grayscale conversion
+                try:
+                    # Upload image to GPU
+                    gpu_image = cv2.cuda_GpuMat()
+                    gpu_image.upload(image)
+                    
+                    # Convert to grayscale on GPU
+                    gpu_gray = cv2.cuda.cvtColor(gpu_image, cv2.COLOR_BGR2GRAY)
+                    
+                    # Download result back to CPU
+                    gray_img = gpu_gray.download()
+                    
+                    if debug:
+                        logger.debug("Used GPU acceleration for grayscale conversion")
+                except Exception as e:
+                    logger.warning(f"GPU grayscale conversion failed, falling back to CPU: {str(e)}")
+                    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            else:
+                # CPU fallback
+                gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
             gray_img = image
         
