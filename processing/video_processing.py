@@ -207,6 +207,8 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
         # If torch is not available, assume CPU-only
         num_cores = available_cores
         logger.info(f"Torch not available. Using all {num_cores} available cores")
+        
+    available_cores -= 1  # Reserve one core for the main process
 
     results = []
     zero_time_met = False
