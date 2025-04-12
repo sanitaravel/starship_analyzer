@@ -11,20 +11,56 @@ try:
     cuda_count = cv2.cuda.getCudaEnabledDeviceCount()
     CUDA_AVAILABLE = cuda_count > 0
     if CUDA_AVAILABLE:
-        # Try to create a CUDA device to verify it actually works
-        cuda_device = cv2.cuda.Device(0)
-        device_name = cuda_device.name()
-        logger.info(f"CUDA is available for fuel level extraction with {cuda_count} device(s): {device_name}")
-        
-        # Check CUDA capabilities
-        free_memory, total_memory = cuda_device.freeMemory(), cuda_device.totalMemory()
-        logger.info(f"GPU memory: {free_memory / (1024*1024):.1f}MB free, {total_memory / (1024*1024):.1f}MB total")
+        try:
+            # Try to create a CUDA device - try different device indices if necessary
+            cuda_device = None
+            device_name = "Unknown"
+            
+            # Loop through available devices to find a working one
+            for device_idx in range(cuda_count):
+                try:
+                    cuda_device = cv2.cuda.Device(device_idx)
+                    device_name = cuda_device.name()
+                    logger.info(f"Successfully connected to CUDA device #{device_idx}: {device_name}")
+                    
+                    # Check CUDA capabilities
+                    free_memory, total_memory = cuda_device.freeMemory(), cuda_device.totalMemory()
+                    logger.info(f"GPU memory: {free_memory / (1024*1024):.1f}MB free, {total_memory / (1024*1024):.1f}MB total")
+                    
+                    # If we got here, we found a working device
+                    break
+                except Exception as dev_err:
+                    logger.debug(f"Couldn't use CUDA device #{device_idx}: {str(dev_err)}")
+            
+            # If we couldn't initialize any device
+            if cuda_device is None:
+                logger.warning("No usable CUDA devices found despite CUDA being available")
+                CUDA_AVAILABLE = False
+                
+        except Exception as init_err:
+            logger.warning(f"Failed to initialize CUDA device: {str(init_err)}")
+            CUDA_AVAILABLE = False
     else:
-        logger.warning("CUDA is detected in OpenCV but no enabled devices found")
+        logger.warning(f"CUDA reported {cuda_count} available devices (expected at least 1)")
 except Exception as e:
     CUDA_AVAILABLE = False
     logger.warning(f"CUDA not available in OpenCV: {str(e)}")
     logger.info("Using CPU for fuel level extraction. Install opencv-contrib-python-cuda for GPU support.")
+
+# Check if we actually got CUDA working
+if CUDA_AVAILABLE:
+    logger.info("🟢 CUDA is fully operational for fuel level extraction")
+    
+    # Test a simple CUDA operation to verify everything works
+    try:
+        test_mat = cv2.cuda_GpuMat((10, 10), cv2.CV_8UC3)
+        test_result = cv2.cuda.cvtColor(test_mat, cv2.COLOR_BGR2GRAY).download()
+        logger.debug("Successfully ran test CUDA operation")
+    except Exception as test_err:
+        logger.warning(f"CUDA test operation failed: {str(test_err)}")
+        CUDA_AVAILABLE = False
+else:
+    logger.warning("🔴 CUDA is not operational, falling back to CPU processing")
 
 # Strip coordinates (x, y) and dimensions
 STRIP_COORDS = [
