@@ -6,17 +6,25 @@ from utils.logger import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 
-# Check if CUDA is available for GPU acceleration
+# Check if CUDA is available for GPU acceleration with more detailed error handling
 try:
-    cv2.cuda.getCudaEnabledDeviceCount()
-    CUDA_AVAILABLE = cv2.cuda.getCudaEnabledDeviceCount() > 0
+    cuda_count = cv2.cuda.getCudaEnabledDeviceCount()
+    CUDA_AVAILABLE = cuda_count > 0
     if CUDA_AVAILABLE:
-        logger.info(f"CUDA is available for fuel level extraction with {cv2.cuda.getCudaEnabledDeviceCount()} device(s)")
+        # Try to create a CUDA device to verify it actually works
+        cuda_device = cv2.cuda.Device(0)
+        device_name = cuda_device.name()
+        logger.info(f"CUDA is available for fuel level extraction with {cuda_count} device(s): {device_name}")
+        
+        # Check CUDA capabilities
+        free_memory, total_memory = cuda_device.freeMemory(), cuda_device.totalMemory()
+        logger.info(f"GPU memory: {free_memory / (1024*1024):.1f}MB free, {total_memory / (1024*1024):.1f}MB total")
     else:
-        logger.info("CUDA is not available for fuel level extraction, using CPU")
-except:
+        logger.warning("CUDA is detected in OpenCV but no enabled devices found")
+except Exception as e:
     CUDA_AVAILABLE = False
-    logger.info("CUDA not available in OpenCV, using CPU for fuel level extraction")
+    logger.warning(f"CUDA not available in OpenCV: {str(e)}")
+    logger.info("Using CPU for fuel level extraction. Install opencv-contrib-python-cuda for GPU support.")
 
 # Strip coordinates (x, y) and dimensions
 STRIP_COORDS = [
