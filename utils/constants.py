@@ -114,6 +114,51 @@ ANALYZE_RESULTS_PLOT_PARAMS = [
      'starship_g_force.png', 'Starship', 'Mission Time (seconds)', 'G-Force (g)'),
 ]
 
+# Fuel level plot parameters (new)
+FUEL_LEVEL_PLOT_PARAMS = [
+    # Superheavy fuel levels
+    ('real_time_seconds', ['superheavy.fuel.lox.fullness', 'superheavy.fuel.ch4.fullness'], 
+     'Superheavy Booster Fuel Levels', 'superheavy_fuel_levels.png', 
+     ['LOX', 'CH4'], 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    # Starship fuel levels
+    ('real_time_seconds', ['starship.fuel.lox.fullness', 'starship.fuel.ch4.fullness'], 
+     'Starship Fuel Levels', 'starship_fuel_levels.png', 
+     ['LOX', 'CH4'], 'Mission Time (seconds)', 'Tank Fullness (%)')
+]
+
+# Multi-launch comparison plot parameters
+PLOT_MULTIPLE_LAUNCHES_PARAMS = [
+    ('real_time_seconds', 'superheavy.speed', 'Superheavy Booster Velocity Comparison',
+     'comparison_superheavy_velocity.png', 'Mission Time (seconds)', 'Velocity (km/h)'),
+    ('real_time_seconds', 'starship.speed', 'Starship Velocity Comparison',
+     'comparison_starship_velocity.png', 'Mission Time (seconds)', 'Velocity (km/h)'),
+    ('real_time_seconds', 'superheavy.altitude', 'Superheavy Booster Altitude Comparison',
+     'comparison_superheavy_altitude.png', 'Mission Time (seconds)', 'Altitude (km)'),
+    ('real_time_seconds', 'starship.altitude', 'Starship Altitude Comparison',
+     'comparison_starship_altitude.png', 'Mission Time (seconds)', 'Altitude (km)'),
+    ('real_time_seconds', 'superheavy_acceleration', 'Superheavy Booster Acceleration Comparison',
+     'comparison_superheavy_acceleration.png', 'Mission Time (seconds)', 'Acceleration (m/s²)'),
+    ('real_time_seconds', 'starship_acceleration', 'Starship Acceleration Comparison',
+     'comparison_starship_acceleration.png', 'Mission Time (seconds)', 'Acceleration (m/s²)'),
+    ('real_time_seconds', 'superheavy_g_force', 'Superheavy Booster G-Force Comparison',
+     'comparison_superheavy_g_force.png', 'Mission Time (seconds)', 'G-Force (g)'),
+    ('real_time_seconds', 'starship_g_force', 'Starship G-Force Comparison',
+     'comparison_starship_g_force.png', 'Mission Time (seconds)', 'G-Force (g)'),
+    ('real_time_seconds', 'superheavy_all_active', 'Superheavy Booster Engine Activity Comparison',
+     'comparison_superheavy_engines.png', 'Mission Time (seconds)', 'Active Engines'),
+    ('real_time_seconds', 'starship_all_active', 'Starship Engine Activity Comparison',
+     'comparison_starship_engines.png', 'Mission Time (seconds)', 'Active Engines'),
+    # Fuel level comparisons
+    ('real_time_seconds', 'superheavy.fuel.lox.fullness', 'Superheavy LOX Tank Level Comparison',
+     'comparison_superheavy_lox.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'superheavy.fuel.ch4.fullness', 'Superheavy CH4 Tank Level Comparison',
+     'comparison_superheavy_ch4.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'starship.fuel.lox.fullness', 'Starship LOX Tank Level Comparison',
+     'comparison_starship_lox.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+    ('real_time_seconds', 'starship.fuel.ch4.fullness', 'Starship CH4 Tank Level Comparison',
+     'comparison_starship_ch4.png', 'Mission Time (seconds)', 'Tank Fullness (%)'),
+]
+
 # Engine performance correlation parameters
 ENGINE_PERFORMANCE_PARAMS = {
     "superheavy": {
@@ -139,27 +184,3 @@ ENGINE_PERFORMANCE_PARAMS = {
         "cmap": "viridis"
     }
 }
-
-# Multi-launch comparison plot parameters (using consistent naming and styling)
-PLOT_MULTIPLE_LAUNCHES_PARAMS = [
-    ('real_time_seconds', 'superheavy.speed', 'Superheavy Booster Velocity Comparison',
-     'comparison_superheavy_velocity.png', 'Mission Time (seconds)', 'Velocity (km/h)'),
-    ('real_time_seconds', 'starship.speed', 'Starship Velocity Comparison',
-     'comparison_starship_velocity.png', 'Mission Time (seconds)', 'Velocity (km/h)'),
-    ('real_time_seconds', 'superheavy.altitude', 'Superheavy Booster Altitude Comparison',
-     'comparison_superheavy_altitude.png', 'Mission Time (seconds)', 'Altitude (km)'),
-    ('real_time_seconds', 'starship.altitude', 'Starship Altitude Comparison',
-     'comparison_starship_altitude.png', 'Mission Time (seconds)', 'Altitude (km)'),
-    ('real_time_seconds', 'superheavy_acceleration', 'Superheavy Booster Acceleration Comparison',
-     'comparison_superheavy_acceleration.png', 'Mission Time (seconds)', 'Acceleration (m/s²)'),
-    ('real_time_seconds', 'starship_acceleration', 'Starship Acceleration Comparison',
-     'comparison_starship_acceleration.png', 'Mission Time (seconds)', 'Acceleration (m/s²)'),
-    ('real_time_seconds', 'superheavy_g_force', 'Superheavy Booster G-Force Comparison',
-     'comparison_superheavy_g_force.png', 'Mission Time (seconds)', 'G-Force (g)'),
-    ('real_time_seconds', 'starship_g_force', 'Starship G-Force Comparison',
-     'comparison_starship_g_force.png', 'Mission Time (seconds)', 'G-Force (g)'),
-    ('real_time_seconds', 'superheavy_all_active', 'Superheavy Booster Engine Activity Comparison',
-     'comparison_superheavy_engines.png', 'Mission Time (seconds)', 'Active Engines'),
-    ('real_time_seconds', 'starship_all_active', 'Starship Engine Activity Comparison',
-     'comparison_starship_engines.png', 'Mission Time (seconds)', 'Active Engines'),
-]

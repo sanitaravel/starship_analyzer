@@ -1,10 +1,10 @@
 # 🚀 Starship Analyzer
 
-![Starship Launch](https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
-![License](https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge)
-![OCR](https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge)
-![Computer Vision](https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv)
+<img src="https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge" alt="Starship Launch">
+<img src="https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python" alt="Python">
+<img src="https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge" alt="License">
+<img src="https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge" alt="OCR">
+<img src="https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv" alt="Computer Vision">
 
 A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch videos using computer vision and optical character recognition.
 
@@ -39,6 +39,7 @@ Starship Analyzer automatically extracts critical flight data from SpaceX's Star
 
 - **Speed and altitude measurements** extracted from video telemetry overlay
 - **Engine ignition status and patterns** across all Raptor engines
+- **Fuel level monitoring** for LOX (liquid oxygen) and CH4 (methane) in both stages
 - **Timestamps and synchronization** to T-0 events
 - **Acceleration and G-force calculations** for engineering analysis
 
@@ -50,6 +51,7 @@ The tool processes video frames in parallel, cleans the extracted data, and gene
 |---------|-------------|
 | **Telemetry Extraction** | OCR system optimized for SpaceX's Starship telemetry overlay |
 | **Engine Status Detection** | Real-time tracking of individual engine ignition states |
+| **Fuel Level Analysis** | Monitoring of LOX and CH4 tank levels in Superheavy booster and Starship |
 | **Performance Analysis** | Calculates derived metrics like acceleration and G-forces |
 | **Multi-launch Comparison** | Compare performance metrics across different Starship test flights |
 | **Interactive Visualizations** | Generate graphs and plots |
@@ -159,9 +161,10 @@ Starship Analyzer uses a multi-stage pipeline:
 1. **Frame Extraction**: Video frames are extracted and queued for processing
 2. **OCR Processing**: Specialized regions of interest (ROIs) are analyzed to extract telemetry
 3. **Engine Detection**: Computer vision techniques identify active engines
-4. **Data Cleaning**: Statistical methods remove outliers and noise
-5. **Analysis**: Calculates acceleration, G-forces, and performance metrics
-6. **Visualization**: Generates plots showing vehicle performance and engine status
+4. **Fuel Level Detection**: Analysis of propellant gauge indicators for LOX and CH4 tank levels
+5. **Data Cleaning**: Statistical methods remove outliers and noise
+6. **Analysis**: Calculates acceleration, G-forces, and performance metrics
+7. **Visualization**: Generates plots showing vehicle performance, engine status, and fuel consumption
 
 ## 📂 Project Structure
 
@@ -190,6 +193,7 @@ The tool generates several types of visualizations:
 - **Telemetry Plots**: Speed and altitude over time with smooth trend lines
 - **Performance Analysis**: Acceleration and G-force profiles with NASA threshold lines
 - **Engine Activity**: Timelines showing which engines are firing with color-coded indicators
+- **Fuel Consumption**: Tracking of LOX and CH4 levels in both vehicle stages over time
 - **Correlation Analysis**: Relationship between engine patterns and vehicle performance
 - **Launch Comparisons**: Side-by-side analysis of different Starship flights for trend analysis
 

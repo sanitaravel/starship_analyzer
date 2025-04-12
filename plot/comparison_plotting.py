@@ -4,10 +4,11 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force
-from utils.constants import (PLOT_MULTIPLE_LAUNCHES_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
-                      SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, LEGEND_FONT_SIZE, TICK_FONT_SIZE,
-                      MARKER_SIZE, MARKER_ALPHA, LINE_WIDTH, LINE_ALPHA)
+from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force, prepare_fuel_data_columns
+from utils.constants import (PLOT_MULTIPLE_LAUNCHES_PARAMS, COMPARE_FUEL_LEVEL_PARAMS,
+                      FIGURE_SIZE, TITLE_FONT_SIZE, SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, 
+                      LEGEND_FONT_SIZE, TICK_FONT_SIZE, MARKER_SIZE, MARKER_ALPHA, 
+                      LINE_WIDTH, LINE_ALPHA)
 from utils import extract_launch_number
 from utils.logger import get_logger
 
@@ -196,6 +197,9 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
             df['superheavy_g_force'] = compute_g_force(df['superheavy_acceleration'])
             df['starship_g_force'] = compute_g_force(df['starship_acceleration'])
 
+            # Ensure fuel data columns exist and have proper names
+            df = prepare_fuel_data_columns(df)
+            
             df_list.append(df)
             launch_id = extract_launch_number(json_path)
             labels.append(f'Launch {launch_id}')  # Capitalize 'launch'
@@ -224,6 +228,18 @@ def compare_multiple_launches(start_time: int, end_time: int, *json_paths: str, 
     # Create all comparison plots defined in constants
     logger.info(f"Creating {len(PLOT_MULTIPLE_LAUNCHES_PARAMS)} comparison plots")
     for params in PLOT_MULTIPLE_LAUNCHES_PARAMS:
+        if len(params) == 4:
+            plot_multiple_launches(
+                df_list, *params, folder_name, labels, show_figures=show_figures)
+        else:
+            # Unpack: x, y, title, filename, x_axis, y_axis.
+            x, y, title, filename, x_axis, y_axis = params
+            plot_multiple_launches(df_list, x, y, title, filename, folder_name,
+                                   labels, x_axis, y_axis, show_figures=show_figures)
+    
+    # Create fuel level comparison plots
+    logger.info(f"Creating {len(COMPARE_FUEL_LEVEL_PARAMS)} fuel level comparison plots")
+    for params in COMPARE_FUEL_LEVEL_PARAMS:
         if len(params) == 4:
             plot_multiple_launches(
                 df_list, *params, folder_name, labels, show_figures=show_figures)

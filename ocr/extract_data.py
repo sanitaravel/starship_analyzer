@@ -3,6 +3,7 @@ from typing import Tuple, Dict
 from utils import display_image
 from .ocr import extract_values_from_roi
 from .engine_detection import detect_engine_status
+from .fuel_level_extraction import extract_fuel_levels
 from utils.logger import get_logger
 
 # Initialize logger
@@ -211,6 +212,38 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
 
     # Extract time separately
     time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
+    
+    # Calculate real-time seconds for fuel level extraction
+    current_time = 0
+    if time_data:
+        sign = time_data.get('sign', '+')
+        hours = time_data.get('hours', 0)
+        minutes = time_data.get('minutes', 0)
+        seconds = time_data.get('seconds', 0)
+        total_seconds = hours * 3600 + minutes * 60 + seconds
+        current_time = total_seconds if sign == '+' else -total_seconds
+    
+    # Extract fuel levels
+    logger.debug("Extracting fuel levels")
+    try:
+        fuel_data = extract_fuel_levels(image, current_time, debug)
+        
+        # Add fuel level data to vehicle data
+        superheavy_data["fuel"] = fuel_data["superheavy"]
+        starship_data["fuel"] = fuel_data["starship"]
+        
+        if debug:
+            logger.debug(f"Fuel levels - Superheavy: LOX {fuel_data['superheavy']['lox']['fullness']:.1f}%, " +
+                        f"CH4 {fuel_data['superheavy']['ch4']['fullness']:.1f}%")
+            logger.debug(f"Fuel levels - Starship: LOX {fuel_data['starship']['lox']['fullness']:.1f}%, " +
+                        f"CH4 {fuel_data['starship']['ch4']['fullness']:.1f}%")
+    except Exception as e:
+        logger.error(f"Error extracting fuel levels: {str(e)}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        # Add empty fuel data to avoid KeyError
+        superheavy_data["fuel"] = {"lox": {"fullness": 0}, "ch4": {"fullness": 0}}
+        starship_data["fuel"] = {"lox": {"fullness": 0}, "ch4": {"fullness": 0}}
     
     # Detect engine status
     logger.debug("Detecting engine status")

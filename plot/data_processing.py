@@ -169,6 +169,48 @@ def process_engine_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def prepare_fuel_data_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Prepare fuel data columns to ensure they exist with proper names.
+    
+    Args:
+        df (pd.DataFrame): DataFrame to prepare
+        
+    Returns:
+        pd.DataFrame: DataFrame with normalized fuel column names
+    """
+    logger.debug("Preparing fuel data columns")
+    
+    # Check for nested vs flat column structure
+    if 'superheavy.fuel.lox.fullness' not in df.columns:
+        # Try to find fuel data and rename it if needed
+        for vehicle in ['superheavy', 'starship']:
+            for fuel_type in ['lox', 'ch4']:
+                # Check various possible column name formats
+                possible_names = [
+                    f'{vehicle}.fuel.{fuel_type}.fullness',
+                    f'{vehicle}_fuel_{fuel_type}_fullness',
+                    f'{vehicle}.{fuel_type}_fullness',
+                    f'{vehicle}_{fuel_type}_fullness'
+                ]
+                
+                # Find the first column that exists
+                found = False
+                for col in possible_names:
+                    if col in df.columns:
+                        df[f'{vehicle}.fuel.{fuel_type}.fullness'] = df[col]
+                        found = True
+                        logger.debug(f"Found fuel column {col}, normalized to {vehicle}.fuel.{fuel_type}.fullness")
+                        break
+                
+                # If no column found, create it with zeros
+                if not found:
+                    logger.warning(f"No fuel data found for {vehicle} {fuel_type}, creating empty column")
+                    df[f'{vehicle}.fuel.{fuel_type}.fullness'] = 0
+    
+    return df
+
+
 def load_and_clean_data(json_path: str) -> pd.DataFrame:
     """
     Load, flatten, and clean data from a JSON file.

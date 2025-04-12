@@ -4,11 +4,12 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.nonparametric.smoothers_lowess import lowess
-from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force
-from utils.constants import (ANALYZE_RESULTS_PLOT_PARAMS, FIGURE_SIZE, TITLE_FONT_SIZE, 
-                      SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, LEGEND_FONT_SIZE, TICK_FONT_SIZE,
-                      MARKER_SIZE, MARKER_ALPHA, LINE_WIDTH, LINE_ALPHA, 
-                      ENGINE_TIMELINE_PARAMS, ENGINE_PERFORMANCE_PARAMS)
+from .data_processing import load_and_clean_data, compute_acceleration, compute_g_force, prepare_fuel_data_columns
+from utils.constants import (ANALYZE_RESULTS_PLOT_PARAMS, FUEL_LEVEL_PLOT_PARAMS, 
+                      FIGURE_SIZE, TITLE_FONT_SIZE, SUBTITLE_FONT_SIZE, LABEL_FONT_SIZE, 
+                      LEGEND_FONT_SIZE, TICK_FONT_SIZE, MARKER_SIZE, MARKER_ALPHA, 
+                      LINE_WIDTH, LINE_ALPHA, ENGINE_TIMELINE_PARAMS, 
+                      ENGINE_PERFORMANCE_PARAMS)
 from utils import extract_launch_number
 from utils.logger import get_logger
 
@@ -274,6 +275,92 @@ def create_engine_performance_correlation(df: pd.DataFrame, vehicle: str, folder
         plt.close(fig)
 
 
+def create_fuel_level_plot(df: pd.DataFrame, x: str, y_cols: list, title: str, filename: str, 
+                           labels: list, x_axis: str, y_axis: str, folder: str, 
+                           launch_number: str, show_figures: bool) -> None:
+    """
+    Create and save a fuel level plot showing multiple fuel types (LOX and CH4) over time.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+        x (str): The column name for the x-axis (usually time).
+        y_cols (list): List of column names for the fuel levels.
+        title (str): The title of the graph.
+        filename (str): The filename to save the graph as.
+        labels (list): Labels for each fuel type.
+        x_axis (str): The label for the x-axis.
+        y_axis (str): The label for the y-axis.
+        folder (str): The folder to save the graph in.
+        launch_number (str): Launch number to include in the title.
+        show_figures (bool): Whether to display the figures.
+    """
+    title_with_launch = f"Launch {launch_number} - {title}"
+    logger.info(f"Creating fuel level plot: {title_with_launch}")
+    
+    # Create plots directory if it doesn't exist
+    os.makedirs(folder, exist_ok=True)
+
+    # Create figure
+    fig = plt.figure(figsize=FIGURE_SIZE)
+    
+    # Create a color palette for consistent colors
+    colors = sns.color_palette("husl", len(y_cols))
+    
+    # Plot each fuel type
+    for i, (y_col, label, color) in enumerate(zip(y_cols, labels, colors)):
+        # Count valid data points
+        data_count = df[y_col].notna().sum()
+        logger.debug(f"Plotting {data_count} data points for {label}")
+        
+        # Plot with larger markers and line width for visibility
+        sns.lineplot(
+            x=x, 
+            y=y_col, 
+            data=df, 
+            label=f"{label}", 
+            marker='o', 
+            markersize=MARKER_SIZE//2,
+            linewidth=LINE_WIDTH, 
+            alpha=LINE_ALPHA, 
+            color=color
+        )
+    
+    # Set y-axis range to 0-100% for consistency
+    plt.ylim(0, 100)
+    
+    # Add grid for better readability
+    plt.grid(True, alpha=0.3)
+    
+    # Set labels with consistent styling
+    plt.xlabel(x_axis, fontsize=LABEL_FONT_SIZE)
+    plt.ylabel(y_axis, fontsize=LABEL_FONT_SIZE)
+    plt.title(title_with_launch, fontsize=TITLE_FONT_SIZE)
+    plt.tick_params(labelsize=TICK_FONT_SIZE)
+    
+    # Add legend with improved visibility
+    plt.legend(frameon=True, fontsize=LEGEND_FONT_SIZE)
+    
+    # Tight layout for better spacing
+    plt.tight_layout()
+
+    # Save with high quality
+    save_path = f"{folder}/{filename}"
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    logger.info(f"Saved fuel level plot to {save_path}")
+
+    # If showing figures, add to interactive viewer instead of displaying
+    if show_figures:
+        # Check if we're in interactive mode (viewer exists in the caller's context)
+        from inspect import currentframe, getouterframes
+        frame = currentframe().f_back
+        if 'viewer' in frame.f_locals:
+            frame.f_locals['viewer'].add_figure(fig, title_with_launch)
+        else:
+            maximize_figure_window()
+            plt.show()
+    else:
+        plt.close(fig)
+
 def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, show_figures: bool = True) -> None:
     """
     Plot flight data from a JSON file with optional time window limits.
@@ -327,9 +414,17 @@ def plot_flight_data(json_path: str, start_time: int = 0, end_time: int = -1, sh
     df['superheavy_g_force'] = compute_g_force(df['superheavy_acceleration'])
     df['starship_g_force'] = compute_g_force(df['starship_acceleration'])
     
+    # Ensure fuel data columns exist and have proper names
+    df = prepare_fuel_data_columns(df)
+    
     # Determine the folder name based on the launch number
     folder = os.path.join("results", f"launch_{launch_number}")
     logger.info(f"Creating plots for launch {launch_number} in folder {folder}")
+    
+    # Create fuel level plots
+    logger.info(f"Creating {len(FUEL_LEVEL_PLOT_PARAMS)} fuel level plots")
+    for params in FUEL_LEVEL_PLOT_PARAMS:
+        create_fuel_level_plot(df, *params, folder, launch_number, show_figures)
     
     # Create engine timeline plots - create separately and add to viewer
     # Superheavy engine plot
