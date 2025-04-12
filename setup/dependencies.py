@@ -159,7 +159,7 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
         
         # Remove the package display section and keep only the requirements file preparation
         
-        # Create a modified requirements file without torch, torchvision, and Windows-only packages on non-Windows
+        # Create a modified requirements file without torch, torchvision, and OpenCV packages
         temp_req_path = os.path.join(".tmp", "requirements_modified.txt")
         os.makedirs(os.path.dirname(temp_req_path), exist_ok=True)
         
@@ -169,8 +169,11 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False):
                 if line.strip().startswith("//"):
                     continue
                 
-                # Skip torch and torchvision as they will be installed separately
-                if line.startswith("torch") or line.startswith("torchvision"):
+                # Skip torch, torchvision and OpenCV as they will be installed separately
+                if (line.startswith("torch") or 
+                    line.startswith("torchvision") or 
+                    line.startswith("opencv-python") or 
+                    line.startswith("opencv-python-headless")):
                     continue
                     
                 # Skip Windows-only packages on non-Windows platforms

@@ -1,4 +1,11 @@
+"""
+Setup module for Starship Analyzer.
+"""
+
 import argparse
+import platform
+import sys
+import subprocess
 
 from .utilities import (
     print_step, print_success, print_warning, print_error,
@@ -7,6 +14,7 @@ from .utilities import (
 from .environment import create_virtual_environment, create_required_directories
 from .gpu import check_cuda_version, install_nvidia_drivers, install_cuda_toolkit
 from .dependencies import install_dependencies
+from .opencv import setup_opencv
 from .verification import verify_installations
 
 def parse_arguments():
@@ -20,16 +28,15 @@ def parse_arguments():
     return parser.parse_args()
 
 def run_setup():
-    """Main setup function."""
+    """
+    Run the setup process for Starship Analyzer.
+    """
     args = parse_arguments()
     
-    print("\n" + "="*60)
-    print(f"{BOLD}Starship Analyzer Setup{RESET}")
+    print_step(0, "Starting Starship Analyzer Setup")
     
     if args.unattended:
         print(f"{BOLD}[Unattended Mode]{RESET}")
-    
-    print("="*60 + "\n")
     
     # Step 1: Create virtual environment
     venv_created = create_virtual_environment(
@@ -40,8 +47,8 @@ def run_setup():
     )
     
     if not venv_created:
-        print_error("Failed to create virtual environment. Aborting setup.")
-        return
+        print_error("Failed to create virtual environment. Setup aborted.")
+        sys.exit(1)
     
     # Step 2: Create required directories
     create_required_directories(2)
@@ -86,24 +93,27 @@ def run_setup():
                     print_warning("Setup paused. Please ensure CUDA is properly installed and run this script again.")
                     return
     
-    # Step 6: Install dependencies with the detected CUDA version
+    # Get the python/pip paths based on the OS
+    if platform.system() == "Windows":
+        python_path = "venv\\Scripts\\python.exe"
+        pip_path = "venv\\Scripts\\pip.exe"
+    else:
+        python_path = "venv/bin/python"
+        pip_path = "venv/bin/pip"
+    
+    # Step 6: Install OpenCV with proper compilation
+    if not setup_opencv(pip_path, python_path):
+        print_warning("OpenCV setup encountered issues. Continuing with other dependencies.")
+    
+    # Step 7: Install dependencies with the detected CUDA version
     deps_installed = False
     if venv_created:
         deps_installed = install_dependencies(cuda_version, 6, force_cpu=args.force_cpu)
         if not deps_installed:
-            print_error("Failed to install dependencies. Aborting setup.")
-            return
+            print_error("Failed to install dependencies. Setup incomplete.")
+            sys.exit(1)
     
-    import platform
-    import os
-    
-    # Get the python path for verification
-    if platform.system() == "Windows":
-        python_path = os.path.join("venv", "Scripts", "python.exe")
-    else:
-        python_path = os.path.join("venv", "bin", "python")
-    
-    # Step 7: Verify installations as a separate step
+    # Step 8: Verify installations as a separate step
     all_successful = False
     gpu_available = False
     if deps_installed:
@@ -122,4 +132,7 @@ def run_setup():
     if venv_created and deps_installed and all_successful:
         print_next_steps()
     else:
-        print_error("Setup completed with errors. Please fix the issues and try again.")
+        print_warning("Some verifications failed. The setup might be incomplete.")
+        print_warning("Check the errors above and try to resolve them manually.")
+    
+    return all_successful
