@@ -197,8 +197,8 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
         import torch
         if torch.cuda.is_available():
             # If GPU-OCR is in use, use half of available cores
-            num_cores = max(1, available_cores // 2)
-            logger.info(f"GPU-OCR detected. Using {num_cores} worker processes (half of available {available_cores})")
+            num_cores = max(1, available_cores // 4)
+            logger.info(f"GPU-OCR detected. Using {num_cores} worker processes (1/4 of available {available_cores})")
         else:
             # If CPU-only, use all available cores
             num_cores = available_cores
@@ -208,8 +208,6 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
         num_cores = available_cores
         logger.info(f"Torch not available. Using all {num_cores} available cores")
         
-    available_cores -= 1  # Reserve one core for the main process
-
     results = []
     zero_time_met = False
     zero_time_frame = None
