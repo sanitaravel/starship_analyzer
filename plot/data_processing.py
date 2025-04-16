@@ -211,6 +211,70 @@ def prepare_fuel_data_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def normalize_fuel_levels(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalize fuel level readings using grouping rules. For LOX and CH4 in each vehicle, 
+    if difference > 30%, use max value if time < 200s, otherwise use min value.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with fuel level data
+        
+    Returns:
+        pd.DataFrame: DataFrame with normalized fuel levels
+    """
+    logger.info("Normalizing fuel levels between LOX and CH4")
+    
+    # Check if we have the required columns
+    required_cols = [
+        'superheavy.fuel.lox.fullness', 'superheavy.fuel.ch4.fullness',
+        'starship.fuel.lox.fullness', 'starship.fuel.ch4.fullness',
+        'real_time_seconds'
+    ]
+    
+    if not all(col in df.columns for col in required_cols):
+        logger.warning("Missing required columns for fuel normalization")
+        return df
+    
+    # Process each row
+    normalized_count = {'superheavy': 0, 'starship': 0}
+    
+    for idx, row in df.iterrows():
+        current_time = row['real_time_seconds']
+        
+        # Group 1: Superheavy LOX and CH4
+        sh_lox = row['superheavy.fuel.lox.fullness']
+        sh_ch4 = row['superheavy.fuel.ch4.fullness']
+        
+        if abs(sh_lox - sh_ch4) > 30:
+            # Use max value in first 200s, min value after
+            if current_time < 200:
+                chosen_value = max(sh_lox, sh_ch4)
+            else:
+                chosen_value = min(sh_lox, sh_ch4)
+                
+            df.at[idx, 'superheavy.fuel.lox.fullness'] = chosen_value
+            df.at[idx, 'superheavy.fuel.ch4.fullness'] = chosen_value
+            normalized_count['superheavy'] += 1
+        
+        # Group 2: Starship LOX and CH4
+        ss_lox = row['starship.fuel.lox.fullness']
+        ss_ch4 = row['starship.fuel.ch4.fullness']
+        
+        if abs(ss_lox - ss_ch4) > 30:
+            # Use max value in first 200s, min value after
+            if current_time < 200:
+                chosen_value = max(ss_lox, ss_ch4)
+            else:
+                chosen_value = min(ss_lox, ss_ch4)
+                
+            df.at[idx, 'starship.fuel.lox.fullness'] = chosen_value
+            df.at[idx, 'starship.fuel.ch4.fullness'] = chosen_value
+            normalized_count['starship'] += 1
+    
+    logger.info(f"Normalized {normalized_count['superheavy']} Superheavy and {normalized_count['starship']} Starship fuel readings")
+    return df
+
+
 def load_and_clean_data(json_path: str) -> pd.DataFrame:
     """
     Load, flatten, and clean data from a JSON file.
@@ -261,6 +325,12 @@ def load_and_clean_data(json_path: str) -> pd.DataFrame:
         # Sort by time
         df.sort_values(by="real_time_seconds", inplace=True)
         logger.debug("Sorted DataFrame by real_time_seconds")
+        
+        # Ensure fuel data columns are properly named
+        df = prepare_fuel_data_columns(df)
+        
+        # Apply fuel level normalization
+        df = normalize_fuel_levels(df)
         
         # Clean data
         df = clean_dataframe(df)

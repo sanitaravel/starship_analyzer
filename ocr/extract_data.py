@@ -213,20 +213,10 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
     # Extract time separately
     time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
     
-    # Calculate real-time seconds for fuel level extraction
-    current_time = 0
-    if time_data:
-        sign = time_data.get('sign', '+')
-        hours = time_data.get('hours', 0)
-        minutes = time_data.get('minutes', 0)
-        seconds = time_data.get('seconds', 0)
-        total_seconds = hours * 3600 + minutes * 60 + seconds
-        current_time = total_seconds if sign == '+' else -total_seconds
-    
     # Extract fuel levels
     logger.debug("Extracting fuel levels")
     try:
-        fuel_data = extract_fuel_levels(image, current_time, debug)
+        fuel_data = extract_fuel_levels(image, debug)
         
         # Add fuel level data to vehicle data
         superheavy_data["fuel"] = fuel_data["superheavy"]

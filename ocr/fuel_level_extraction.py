@@ -119,51 +119,7 @@ def process_strip(gray_img: np.ndarray, strip_idx: int, debug: bool = False) -> 
         "ref_diff": pixel_diff
     }
 
-def apply_grouping_rules(results: List[Dict], current_time: float = 0) -> List[Dict]:
-    """
-    Apply grouping rules to the results. For bars 1-2 and 3-4, if difference > 30%,
-    use max value if time < 200s, otherwise use min value.
-    
-    Args:
-        results (List[Dict]): List of strip results
-        current_time (float): Current time in seconds
-        
-    Returns:
-        List[Dict]: Processed results with grouping rules applied
-    """
-    if len(results) != 4:
-        logger.error(f"Expected 4 results for grouping, got {len(results)}")
-        return results
-    
-    # Group 1: bars 0-1 (LOX and CH4 for Superheavy)
-    if abs(results[0]["fullness"] - results[1]["fullness"]) > 30:
-        # Use max value in first 200s, min value after
-        if current_time < 200:
-            chosen_value = max(results[0]["fullness"], results[1]["fullness"])
-        else:
-            chosen_value = min(results[0]["fullness"], results[1]["fullness"])
-            
-        # Update both bars in the group
-        results[0]["fullness"] = chosen_value
-        results[1]["fullness"] = chosen_value
-        logger.debug(f"Group 1 (Superheavy): Applied grouping rule, using value {chosen_value:.1f}%")
-    
-    # Group 2: bars 2-3 (LOX and CH4 for Starship)
-    if abs(results[2]["fullness"] - results[3]["fullness"]) > 30:
-        # Use max value in first 200s, min value after
-        if current_time < 200:
-            chosen_value = max(results[2]["fullness"], results[3]["fullness"])
-        else:
-            chosen_value = min(results[2]["fullness"], results[3]["fullness"])
-            
-        # Update both bars in the group
-        results[2]["fullness"] = chosen_value
-        results[3]["fullness"] = chosen_value
-        logger.debug(f"Group 2 (Starship): Applied grouping rule, using value {chosen_value:.1f}%")
-    
-    return results
-
-def extract_fuel_levels(image: np.ndarray, current_time: float = 0, debug: bool = False) -> Dict:
+def extract_fuel_levels(image: np.ndarray, debug: bool = False) -> Dict:
     """
     Extract fuel level information from an image.
     
@@ -189,26 +145,23 @@ def extract_fuel_levels(image: np.ndarray, current_time: float = 0, debug: bool 
         for i in range(4):
             result = process_strip(gray_img, i, debug)
             strip_results.append(result)
-            
-        # Apply grouping rules
-        processed_results = apply_grouping_rules(strip_results, current_time)
         
-        # Create result dictionary
+        # Create result dictionary directly from strip results without applying grouping rules
         fuel_data = {
             "superheavy": {
                 "lox": {
-                    "fullness": processed_results[0]["fullness"]
+                    "fullness": strip_results[0]["fullness"]
                 },
                 "ch4": {
-                    "fullness": processed_results[1]["fullness"]
+                    "fullness": strip_results[1]["fullness"]
                 }
             },
             "starship": {
                 "lox": {
-                    "fullness": processed_results[2]["fullness"]
+                    "fullness": strip_results[2]["fullness"]
                 },
                 "ch4": {
-                    "fullness": processed_results[3]["fullness"]
+                    "fullness": strip_results[3]["fullness"]
                 }
             }
         }
