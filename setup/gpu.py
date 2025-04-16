@@ -149,17 +149,32 @@ def install_nvidia_drivers(step_num=4, debug=False):
     elif platform.system() == "Linux":
         try:
             print_warning("Installing NVIDIA drivers for Linux...")
+            # Check if sudo is available
+            sudo_check_cmd = ["which", "sudo"]
+            print_debug(f"Checking if sudo is available: {' '.join(sudo_check_cmd)}")
+            sudo_result = subprocess.run(sudo_check_cmd, capture_output=True, text=True, check=False)
+            
+            if sudo_result.returncode != 0:
+                print_warning("sudo is not available. NVIDIA drivers must be installed manually.")
+                print_warning("Please install NVIDIA drivers through your system's package manager")
+                return
+            
             # Update package lists first
             cmd = ["sudo", "apt-get", "update"]
             print_debug(f"Running command: {' '.join(cmd)}")
             
             # Only show output in real-time if debug is enabled
-            if debug:
-                subprocess.run(cmd, check=True)
-            else:
-                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print_debug(f"Command output: {result.stdout}")
-                print_debug(f"Command error: {result.stderr}")
+            try:
+                if debug:
+                    subprocess.run(cmd, check=True)
+                else:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print_debug(f"Command output: {result.stdout}")
+                    print_debug(f"Command error: {result.stderr}")
+            except subprocess.CalledProcessError as e:
+                print_warning(f"Failed to update package lists: {e}")
+                print_debug(f"Return code: {e.returncode}")
+                print_warning("Continuing with installation anyway...")
             
             # Install NVIDIA drivers
             cmd = ["sudo", "apt-get", "install", "-y", "nvidia-driver-470"]
@@ -177,6 +192,9 @@ def install_nvidia_drivers(step_num=4, debug=False):
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install NVIDIA drivers: {e}")
             print_debug(f"CalledProcessError during NVIDIA driver installation: {e}")
+            if e.returncode == 100:
+                print_warning("Error code 100 typically indicates a sudo permission problem or apt configuration issue")
+                print_warning("Try installing NVIDIA drivers manually with: sudo apt-get install -y nvidia-driver-470")
         except Exception as e:
             print_error(f"Unexpected error during NVIDIA driver installation: {e}")
             print_debug(f"Exception during NVIDIA driver installation: {str(e)}")
@@ -205,17 +223,32 @@ def install_cuda_toolkit(step_num=5, debug=False):
     elif platform.system() == "Linux":
         try:
             print_warning("Installing CUDA Toolkit for Linux...")
+            # Check if sudo is available
+            sudo_check_cmd = ["which", "sudo"]
+            print_debug(f"Checking if sudo is available: {' '.join(sudo_check_cmd)}")
+            sudo_result = subprocess.run(sudo_check_cmd, capture_output=True, text=True, check=False)
+            
+            if sudo_result.returncode != 0:
+                print_warning("sudo is not available. CUDA Toolkit must be installed manually.")
+                print_warning("Please install nvidia-cuda-toolkit through your system's package manager")
+                return
+            
             # Update package lists first
             cmd = ["sudo", "apt-get", "update"]
             print_debug(f"Running command: {' '.join(cmd)}")
             
             # Only show output in real-time if debug is enabled
-            if debug:
-                subprocess.run(cmd, check=True)
-            else:
-                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print_debug(f"Command output: {result.stdout}")
-                print_debug(f"Command error: {result.stderr}")
+            try:
+                if debug:
+                    subprocess.run(cmd, check=True)
+                else:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print_debug(f"Command output: {result.stdout}")
+                    print_debug(f"Command error: {result.stderr}")
+            except subprocess.CalledProcessError as e:
+                print_warning(f"Failed to update package lists: {e}")
+                print_debug(f"Return code: {e.returncode}")
+                print_warning("Continuing with installation anyway...")
             
             # Install CUDA toolkit
             cmd = ["sudo", "apt-get", "install", "-y", "nvidia-cuda-toolkit"]
@@ -233,6 +266,9 @@ def install_cuda_toolkit(step_num=5, debug=False):
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install CUDA Toolkit: {e}")
             print_debug(f"CalledProcessError during CUDA Toolkit installation: {e}")
+            if e.returncode == 100:
+                print_warning("Error code 100 typically indicates a sudo permission problem or apt configuration issue")
+                print_warning("Try installing CUDA Toolkit manually with: sudo apt-get install -y nvidia-cuda-toolkit")
         except Exception as e:
             print_error(f"Unexpected error during CUDA Toolkit installation: {e}")
             print_debug(f"Exception during CUDA Toolkit installation: {str(e)}")

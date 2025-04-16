@@ -60,36 +60,86 @@ def install_opencv_dependencies(pip_path, python_path, debug=False):
         elif platform.system() == "Linux":
             # Linux-specific dependencies - need to use system package manager
             try:
+                # Check if sudo is available
+                sudo_check_cmd = ["which", "sudo"]
+                print_debug(f"Checking if sudo is available: {' '.join(sudo_check_cmd)}")
+                sudo_result = subprocess.run(sudo_check_cmd, capture_output=True, text=True, check=False)
+                has_sudo = sudo_result.returncode == 0
+                
+                if not has_sudo:
+                    print_warning("sudo is not available. System dependencies must be installed manually.")
+                    print_warning("Please install the following packages with your system package manager:")
+                    print_warning("build-essential cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev")
+                    print_warning("libswscale-dev libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev")
+                    print_warning("libdc1394-22-dev python3-dev python3-numpy")
+                    return True  # Continue without system dependencies
+                
                 # Update package lists first
-                cmd = ["sudo", "apt-get", "update"]
-                print_debug(f"Running Linux-specific command: {' '.join(cmd)}")
+                update_cmd = ["sudo", "apt-get", "update"]
+                print_debug(f"Running command: {' '.join(update_cmd)}")
                 
-                if debug:
-                    subprocess.run(cmd, check=True)
-                else:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                    print_debug(f"Command output: {result.stdout}")
-                    print_debug(f"Command error: {result.stderr}")
+                try:
+                    if debug:
+                        subprocess.run(update_cmd, check=True)
+                    else:
+                        result = subprocess.run(update_cmd, check=True, capture_output=True, text=True)
+                        print_debug(f"Command output: {result.stdout}")
+                        print_debug(f"Command error: {result.stderr}")
+                except subprocess.CalledProcessError as e:
+                    print_warning(f"Failed to update package lists: {e}")
+                    print_debug(f"Return code: {e.returncode}")
+                    print_warning("Continuing with installation anyway...")
                 
-                # Install required packages
-                cmd = [
-                    "sudo", "apt-get", "install", "-y",
-                    "build-essential", "cmake", "git", "libgtk2.0-dev",
-                    "pkg-config", "libavcodec-dev", "libavformat-dev", "libswscale-dev",
-                    "libtbb2", "libtbb-dev", "libjpeg-dev", "libpng-dev", "libtiff-dev",
-                    "libdc1394-22-dev", "python3-dev", "python3-numpy"
+                # Install required packages in groups to better identify issues
+                dependency_groups = [
+                    # Basic build tools
+                    ["build-essential", "cmake", "git"],
+                    # Libraries group 1
+                    ["libgtk2.0-dev", "pkg-config", "libavcodec-dev", "libavformat-dev"],
+                    # Libraries group 2
+                    ["libswscale-dev", "libtbb2", "libtbb-dev"],
+                    # Libraries group 3
+                    ["libjpeg-dev", "libpng-dev", "libtiff-dev"],
+                    # Libraries group 4
+                    ["libdc1394-22-dev", "python3-dev", "python3-numpy"]
                 ]
-                print_debug(f"Running Linux-specific command: {' '.join(cmd)}")
                 
-                if debug:
-                    subprocess.run(cmd, check=True)
-                else:
-                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                    print_debug(f"Command output: {result.stdout}")
-                    print_debug(f"Command error: {result.stderr}")
-            except subprocess.CalledProcessError as e:
-                print_error(f"Failed to install system dependencies: {e}")
-                print_debug(f"CalledProcessError during Linux dependencies installation: {e}")
+                all_installed = True
+                for group in dependency_groups:
+                    try:
+                        install_cmd = ["sudo", "apt-get", "install", "-y"] + group
+                        print_debug(f"Installing package group: {group}")
+                        print_debug(f"Running command: {' '.join(install_cmd)}")
+                        
+                        if debug:
+                            subprocess.run(install_cmd, check=True)
+                        else:
+                            result = subprocess.run(install_cmd, check=True, capture_output=True, text=True)
+                            print_debug(f"Command output: {result.stdout}")
+                            print_debug(f"Command error: {result.stderr}")
+                            
+                        print_success(f"Successfully installed packages: {', '.join(group)}")
+                    except subprocess.CalledProcessError as e:
+                        print_error(f"Failed to install packages {', '.join(group)}: {e}")
+                        print_debug(f"Return code: {e.returncode}")
+                        if e.returncode == 100:
+                            print_warning("Error code 100 typically indicates a sudo permission problem or apt configuration issue")
+                            print_warning("Try running the following commands manually:")
+                            print_warning(f"  sudo apt-get update")
+                            print_warning(f"  sudo apt-get install -y {' '.join(group)}")
+                        elif e.returncode == 127:
+                            print_warning("Error code 127 typically indicates that the command was not found")
+                            print_warning("Make sure you have sudo and apt-get installed")
+                        all_installed = False
+                        
+                if not all_installed:
+                    print_warning("Some system dependencies could not be installed")
+                    print_warning("You may need to install them manually using your system's package manager")
+                    print_warning("OpenCV compilation may fail if required dependencies are missing")
+                    # Continue anyway - don't return False here
+            except Exception as e:
+                print_error(f"Error during system dependencies installation: {e}")
+                print_debug(f"Exception during Linux dependencies installation: {str(e)}")
                 print_warning("You may need to manually install build dependencies")
                 print_warning("See: https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html")
         

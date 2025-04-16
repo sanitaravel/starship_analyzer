@@ -147,34 +147,51 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False, debug=False)
     if platform.system() == "Linux":
         print_warning("Installing Python Tkinter package for Linux...")
         try:
-            # Update package lists first
-            cmd = ["sudo", "apt-get", "update"]
-            print_debug(f"Running command: {' '.join(cmd)}")
+            # Check if sudo is available
+            sudo_check_cmd = ["which", "sudo"]
+            print_debug(f"Checking if sudo is available: {' '.join(sudo_check_cmd)}")
+            sudo_result = subprocess.run(sudo_check_cmd, capture_output=True, text=True, check=False)
+            has_sudo = sudo_result.returncode == 0
             
-            # Only show output in real-time if debug is enabled
-            if debug:
-                subprocess.run(cmd, check=True)
+            if not has_sudo:
+                print_warning("sudo is not available. Tkinter must be installed manually.")
+                print_warning("Please install python3-tk with your system package manager")
             else:
-                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print_debug(f"Command output: {result.stdout}")
-                print_debug(f"Command error: {result.stderr}")
+                # Update package lists first
+                cmd = ["sudo", "apt-get", "update"]
+                print_debug(f"Running command: {' '.join(cmd)}")
                 
-            # Install Tkinter
-            cmd = ["sudo", "apt-get", "install", "-y", "python3-tk"]
-            print_debug(f"Running command: {' '.join(cmd)}")
-            
-            # Only show output in real-time if debug is enabled
-            if debug:
-                subprocess.run(cmd, check=True)
-            else:
-                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                print_debug(f"Command output: {result.stdout}")
-                print_debug(f"Command error: {result.stderr}")
+                try:
+                    # Only show output in real-time if debug is enabled
+                    if debug:
+                        subprocess.run(cmd, check=True)
+                    else:
+                        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                        print_debug(f"Command output: {result.stdout}")
+                        print_debug(f"Command error: {result.stderr}")
+                except subprocess.CalledProcessError as e:
+                    print_warning(f"Failed to update package lists: {e}")
+                    print_debug(f"Return code: {e.returncode}")
+                    print_warning("Continuing with installation anyway...")
+                    
+                # Install Tkinter
+                cmd = ["sudo", "apt-get", "install", "-y", "python3-tk"]
+                print_debug(f"Running command: {' '.join(cmd)}")
                 
-            print_success("Successfully installed python3-tk")
+                # Only show output in real-time if debug is enabled
+                if debug:
+                    subprocess.run(cmd, check=True)
+                else:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print_debug(f"Command output: {result.stdout}")
+                    print_debug(f"Command error: {result.stderr}")
+                    
+                print_success("Successfully installed python3-tk")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install python3-tk: {e}")
             print_debug(f"CalledProcessError during Tkinter installation: {e}")
+            if e.returncode == 100:
+                print_warning("Error code 100 typically indicates a sudo permission problem or apt configuration issue")
             print_warning("You may need to manually install Tkinter: sudo apt-get install python3-tk")
         except Exception as e:
             print_warning(f"Could not verify or install python3-tk: {e}")
