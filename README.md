@@ -20,6 +20,7 @@ A powerful Python toolkit for extracting, analyzing, and visualizing telemetry d
     - [Prerequisites](#prerequisites)
     - [Quick Start](#quick-start)
     - [Manual Installation](#manual-installation)
+    - [Updating the Application](#updating-the-application)
     - [Key Dependencies](#key-dependencies)
   - [📋 Usage Guide](#-usage-guide)
     - [Getting Started](#getting-started)
@@ -113,6 +114,44 @@ If you prefer to set up the environment manually:
 
    ```bash
    pip install -r requirements.txt
+   ```
+
+### Updating the Application
+
+To update Starship Analyzer to the latest version without recreating your environment:
+
+1. **Pull the latest code**
+
+   ```bash
+   git pull
+   ```
+
+2. **Run the update command**
+
+   ```bash
+   python setup.py --update
+   ```
+
+   This will:
+   - Keep your existing virtual environment
+   - Check your CUDA configuration
+   - Update all dependencies to their required versions
+   - Verify installations are working correctly
+
+3. **When to update**
+   - After pulling changes from the repository
+   - When new dependencies have been added
+   - If you're experiencing compatibility issues
+   - When new SpaceX webcast formats require updated analysis capabilities
+
+Additional update options:
+
+   ```bash
+   # Force CPU-only installation even if CUDA is available
+   python setup.py --update --force-cpu
+   
+   # Run update without user interaction
+   python setup.py --update --unattended
    ```
 
 ### Key Dependencies
