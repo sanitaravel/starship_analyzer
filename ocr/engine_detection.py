@@ -1,10 +1,30 @@
 import numpy as np
 from typing import Dict
+from numba import njit
 from utils.constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
 from utils.logger import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
+
+@njit
+def check_engines_numba(image: np.ndarray, coordinates: list, white_threshold: int) -> list:
+    """
+    Optimized engine status check using numba.
+    """
+    status = []
+    for x, y in coordinates:
+        if 0 <= y < image.shape[0] and 0 <= x < image.shape[1]:
+            pixel = image[y, x]
+            is_on = True
+            for channel in pixel:
+                if channel < white_threshold:
+                    is_on = False
+                    break
+            status.append(is_on)
+        else:
+            status.append(False)
+    return status
 
 def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_type: str) -> Dict:
     """
@@ -28,35 +48,10 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     
     # Check engines
     for section, coordinates in engine_coords.items():
+        engine_status[section] = check_engines_numba(image, coordinates, WHITE_THRESHOLD)
         if debug:
-            logger.debug(f"Processing {engine_type} {section} with {len(coordinates)} engine points")
-            
-        active_count = 0
-        invalid_coords = 0
-            
-        for i, (x, y) in enumerate(coordinates):
-            # Check if coordinates are within image boundaries
-            if 0 <= y < image.shape[0] and 0 <= x < image.shape[1]:
-                # Get pixel value
-                pixel = image[y, x]
-                # Check if all channels are above threshold (close to white)
-                is_on = all(channel >= WHITE_THRESHOLD for channel in pixel)
-                engine_status[section].append(is_on)
-                
-                if is_on:
-                    active_count += 1
-                    
-                if debug:
-                    logger.debug(f"{engine_type} {section} engine {i+1}: {is_on} (pixel value: {pixel})")
-            else:
-                # If coordinates are out of bounds, consider engine off
-                engine_status[section].append(False)
-                invalid_coords += 1
-                if debug:
-                    logger.warning(f"{engine_type} {section} engine {i+1}: Coordinates out of bounds ({x}, {y})")
-        
-        if debug:
-            logger.debug(f"{engine_type} {section} summary: {active_count} active engines, {invalid_coords} invalid coordinates")
+            active_count = sum(engine_status[section])
+            logger.debug(f"{engine_type} {section} summary: {active_count} active engines out of {len(coordinates)}")
                     
     return engine_status
 

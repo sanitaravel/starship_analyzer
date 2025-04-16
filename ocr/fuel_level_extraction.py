@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from typing import Dict, List, Tuple
+from numba import njit
 from utils.logger import get_logger
 
 # Initialize logger
@@ -28,96 +29,74 @@ REF_PIXEL_COORDS = [
 BRIGHTNESS_THRESHOLD = 0.9
 REF_DIFF_THRESHOLD = 0.2  # Threshold for reference pixel difference
 
+@njit
+def process_strip_numba(gray_img: np.ndarray, x: int, y: int, ref_x: int, ref_y: int, ref_x2: int, ref_y2: int, strip_length: int, strip_height: int, brightness_threshold: float, ref_diff_threshold: float) -> Dict:
+    """
+    Optimized version of process_strip using numba for performance.
+    """
+    h, w = gray_img.shape
+    if not (0 <= ref_y < h and 0 <= ref_x < w and 0 <= ref_y2 < h and 0 <= ref_x2 < w):
+        return {"fullness": 0.0, "length": 0, "ref_diff": 0.0}
+
+    ref_pixel1 = gray_img[ref_y, ref_x]
+    ref_pixel2 = gray_img[ref_y2, ref_x2]
+
+    min_val = gray_img.min()
+    max_val = gray_img.max()
+    ptp_val = max_val - min_val or 1  # Replace np.ptp() with max - min
+    ref_pixel1_norm = (ref_pixel1 - min_val) / ptp_val
+    ref_pixel2_norm = (ref_pixel2 - min_val) / ptp_val
+
+    pixel_diff = abs(ref_pixel2_norm - ref_pixel1_norm)
+    if pixel_diff <= ref_diff_threshold:
+        return {"fullness": 0.0, "length": 0, "ref_diff": pixel_diff}
+
+    y_start = max(0, y - strip_height // 2)
+    y_end = min(h, y + strip_height // 2 + 1)
+    x_end = min(w, x + strip_length)
+
+    strip = gray_img[y_start:y_end, x:x_end]
+    
+    # Compute the mean along the vertical axis manually
+    brightness_profile = np.zeros(strip.shape[1], dtype=np.float64)
+    for col in range(strip.shape[1]):
+        brightness_profile[col] = strip[:, col].sum() / strip.shape[0]
+
+    norm_brightness = (brightness_profile - brightness_profile.min()) / (brightness_profile.max() - brightness_profile.min() or 1)
+
+    bright_pixels = norm_brightness > brightness_threshold
+    bright_indices = np.where(bright_pixels)[0]
+    if len(bright_indices) > 0:
+        rightmost_pos = bright_indices.max()
+        effective_length = rightmost_pos + 1
+        fullness_percentage = (rightmost_pos / strip_length) * 100 if strip_length > 0 else 0
+    else:
+        effective_length = 0
+        fullness_percentage = 0
+
+    return {"fullness": fullness_percentage, "length": effective_length, "ref_diff": pixel_diff}
+
 def process_strip(gray_img: np.ndarray, strip_idx: int, debug: bool = False) -> Dict:
     """
     Process a single fuel level strip from the image.
-    
-    Args:
-        gray_img (np.ndarray): Grayscale image
-        strip_idx (int): Index of the strip to process (0-3)
-        debug (bool): Whether to enable debug logging
-        
-    Returns:
-        Dict: Dictionary with strip data including fullness percentage
     """
     if strip_idx < 0 or strip_idx > 3:
         logger.error(f"Invalid strip index: {strip_idx}, must be 0-3")
         return {"fullness": 0.0, "length": 0}
-        
-    # Get coordinates
+
     x, y = STRIP_COORDS[strip_idx]
     ref_x, ref_y = REF_PIXEL_COORDS[strip_idx]
-    
-    # Calculate second reference pixel position
-    if strip_idx == 0 or strip_idx == 2:  # For strips 1 and 3, shift 5px to the right
-        ref_x2 = ref_x + 5
-        ref_y2 = ref_y
-    else:  # For strips 2 and 4, shift 5px to the left
-        ref_x2 = ref_x - 5
-        ref_y2 = ref_y
-    
-    # Check if reference pixels are within image bounds
-    h, w = gray_img.shape
-    if not (0 <= ref_y < h and 0 <= ref_x < w and 0 <= ref_y2 < h and 0 <= ref_x2 < w):
-        if debug:
-            logger.debug(f"Reference pixels out of bounds for strip {strip_idx+1}")
-        return {"fullness": 0.0, "length": 0}
-    
-    # Get reference pixel values and normalize them
-    ref_pixel1 = gray_img[ref_y, ref_x]
-    ref_pixel2 = gray_img[ref_y2, ref_x2]
-    
-    # Normalize reference pixels
-    min_val = gray_img.min()
-    ptp_val = np.ptp(gray_img) or 1
-    ref_pixel1_norm = (ref_pixel1 - min_val) / ptp_val
-    ref_pixel2_norm = (ref_pixel2 - min_val) / ptp_val
-    
-    # Check if the difference between reference pixels is noticeable
-    pixel_diff = abs(ref_pixel2_norm - ref_pixel1_norm)
-    ref_is_active = pixel_diff > REF_DIFF_THRESHOLD
-    
+    ref_x2 = ref_x + 5 if strip_idx in [0, 2] else ref_x - 5
+    ref_y2 = ref_y
+
+    result = process_strip_numba(
+        gray_img, x, y, ref_x, ref_y, ref_x2, ref_y2, STRIP_LENGTH, STRIP_HEIGHT, BRIGHTNESS_THRESHOLD, REF_DIFF_THRESHOLD
+    )
+
     if debug:
-        logger.debug(f"Strip {strip_idx+1} - Reference pixels: {ref_pixel1_norm:.3f}, {ref_pixel2_norm:.3f}, diff: {pixel_diff:.3f}")
-    
-    # If reference check fails, return zeros
-    if not ref_is_active:
-        return {"fullness": 0.0, "length": 0, "ref_diff": pixel_diff}
-    
-    # Extract the strip
-    y_start = max(0, y - STRIP_HEIGHT//2)
-    y_end = min(h, y + STRIP_HEIGHT//2 + 1)
-    x_end = min(w, x + STRIP_LENGTH)
-    
-    strip = gray_img[y_start:y_end, x:x_end]
-    
-    # Average brightness across the strip vertically
-    brightness_profile = strip.mean(axis=0)
-    
-    # Normalize brightness (0 to 1)
-    norm_brightness = (brightness_profile - brightness_profile.min()) / (np.ptp(brightness_profile) or 1)
-    
-    # Find bright pixels
-    bright_pixels = norm_brightness > BRIGHTNESS_THRESHOLD
-    
-    # Find the rightmost bright pixel
-    bright_indices = np.where(bright_pixels)[0]
-    if len(bright_indices) > 0:
-        rightmost_pos = bright_indices.max()
-        effective_length = rightmost_pos + 1  # +1 because indices are 0-based
-        fullness_percentage = (rightmost_pos / STRIP_LENGTH) * 100 if STRIP_LENGTH > 0 else 0
-    else:
-        effective_length = 0
-        fullness_percentage = 0
-    
-    if debug:
-        logger.debug(f"Strip {strip_idx+1} - Length: {effective_length}, Fullness: {fullness_percentage:.1f}%")
-    
-    return {
-        "fullness": fullness_percentage,
-        "length": effective_length,
-        "ref_diff": pixel_diff
-    }
+        logger.debug(f"Strip {strip_idx+1} - Length: {result['length']}, Fullness: {result['fullness']:.1f}%, Ref Diff: {result['ref_diff']:.3f}")
+
+    return result
 
 def extract_fuel_levels(image: np.ndarray, debug: bool = False) -> Dict:
     """
