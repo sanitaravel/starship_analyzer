@@ -1,12 +1,14 @@
 # 🚀 Starship Analyzer
 
+<p align="center">
 <img src="https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge" alt="Starship Launch">
 <img src="https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python" alt="Python">
 <img src="https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge" alt="License">
 <img src="https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge" alt="OCR">
 <img src="https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv" alt="Computer Vision">
+</p>
 
-A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch videos using computer vision and optical character recognition.
+A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch webcasts using computer vision and optical character recognition. This tool helps engineers, space enthusiasts, and analysts track performance metrics and compare data across different Starship test flights.
 
 ## Table of Contents
 
@@ -17,6 +19,8 @@ A powerful Python toolkit for extracting, analyzing, and visualizing telemetry d
   - [🛠️ Installation](#️-installation)
     - [Prerequisites](#prerequisites)
     - [Quick Start](#quick-start)
+    - [Manual Installation](#manual-installation)
+    - [Key Dependencies](#key-dependencies)
   - [📋 Usage Guide](#-usage-guide)
     - [Getting Started](#getting-started)
     - [Workflow](#workflow)
@@ -54,7 +58,7 @@ The tool processes video frames in parallel, cleans the extracted data, and gene
 | **Fuel Level Analysis** | Monitoring of LOX and CH4 tank levels in Superheavy booster and Starship |
 | **Performance Analysis** | Calculates derived metrics like acceleration and G-forces |
 | **Multi-launch Comparison** | Compare performance metrics across different Starship test flights |
-| **Interactive Visualizations** | Generate graphs and plots |
+| **Interactive Visualizations** | Generate detailed graphs and plots with zoom capabilities, tooltips, and exportable formats (PNG, SVG, CSV) |
 | **Parallel Processing** | Efficiently processes video frames using multi-core architecture |
 | **User-friendly CLI** | Simple menu-driven interface with no programming knowledge required |
 
@@ -90,6 +94,35 @@ The tool processes video frames in parallel, cleans the extracted data, and gene
 3. **Activate the virtual environment**
    - Windows: `venv\Scripts\activate`
    - macOS/Linux: `source venv/bin/activate`
+
+### Manual Installation
+
+If you prefer to set up the environment manually:
+
+1. Create a virtual environment:
+
+   ```bash
+   python -m venv venv
+   ```
+
+2. Activate the virtual environment:
+   - Windows: `venv\Scripts\activate`
+   - macOS/Linux: `source venv/bin/activate`
+
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Key Dependencies
+
+- **OpenCV**: For video processing and computer vision tasks
+- **EasyOCR**: For optical character recognition
+- **PyTorch**: Backend for OCR operations (GPU acceleration when available)
+- **Matplotlib/Plotly**: For visualization and data plotting
+- **NumPy/Pandas**: For data handling and analysis
+- **yt-dlp**: For downloading Starship webcasts
 
 ## 📋 Usage Guide
 
@@ -145,14 +178,21 @@ Debug mode logs are more verbose but provide valuable insights when resolving co
 
 ### Available Commands
 
-The interactive menu offers several options:
+The application's main menu provides several options:
 
-| Command | Description |
-|---------|-------------|
-| **Process random video frame** | Test extraction on a single frame to validate setup |
-| **Process complete video** | Extract data from all frames in a recording |
-| **Visualize flight data** | Generate plots from processed launch data |
-| **Visualize multiple launches** | Compare metrics across different flights |
+| Menu Option | Submenu | Description |
+|-------------|---------|-------------|
+| **Video Processing** | | Options for extracting data from videos |
+| | **Process random video frame** | Test extraction on a single frame to validate setup |
+| | **Process complete video** | Extract data from all frames in a recording |
+| **Data Visualization** | | Options for visualizing extracted data |
+| | **Visualize flight data** | Generate plots from processed launch data |
+| | **Visualize multiple launches data** | Compare metrics across different flights |
+| **Download Media** | | Options for downloading Starship launch videos |
+| | **Download from launch list** | Download videos from curated list of Starship launches |
+| | **Download from custom URL** | Download videos from custom YouTube or Twitter/X URLs |
+| **Toggle Debug Mode** | | Enable/disable detailed diagnostic information |
+| **Exit** | | Exit the application |
 
 ## 🔍 How It Works
 
@@ -166,24 +206,52 @@ Starship Analyzer uses a multi-stage pipeline:
 6. **Analysis**: Calculates acceleration, G-forces, and performance metrics
 7. **Visualization**: Generates plots showing vehicle performance, engine status, and fuel consumption
 
+The processed data is available through an interactive visualization interface that lets you explore:
+
+- Time-synchronized telemetry readings
+- Engine activation patterns
+- Fuel consumption rates
+- Performance metrics across different flight phases
+- Comparative analysis between multiple launches
+
 ## 📂 Project Structure
 
-```text
+```bash
 starship_analyzer/
-├── ocr/                # Optical Character Recognition subsystem
-│   ├── engine_detection.py  # Engine state detection
-│   ├── extract_data.py      # Main data extraction logic
-│   └── ocr.py               # Text recognition from telemetry
-├── plot/               # Data processing and visualization tools
-│   ├── data_processing.py   # Data cleaning and calculation
-│   └── plotting.py          # Graph generation
-├── processing/         # Video and frame processing engine
-│   ├── frame_processing.py  # Single frame analysis
-│   └── video_processing.py  # Batch processing of videos
-├── flight_recordings/  # Input directory for launch videos
-├── results/            # Output directory for processed data
-├── main.py             # Application entry point
-└── setup.py            # Installation and configuration script
+├── ocr/                      # Optical Character Recognition subsystem
+│   ├── engine_detection.py   # Engine state detection
+│   ├── extract_data.py       # Main data extraction logic
+│   ├── fuel_level_extraction.py # Fuel level detection
+│   └── ocr.py                # Text recognition from telemetry
+├── plot/                     # Data processing and visualization tools
+│   ├── data_processing.py    # Data cleaning and calculation
+│   ├── flight_plotting.py    # Single flight visualization
+│   ├── comparison_plotting.py # Multiple flight comparison
+│   └── interactive_viewer.py # Interactive plot viewer
+├── processing/               # Video and frame processing engine
+│   ├── frame_processing.py   # Single frame analysis
+│   └── video_processing.py   # Batch processing of videos
+├── ui/                       # User interface components
+│   ├── main_menu.py          # Main application menu
+│   ├── video_menu.py         # Video processing options
+│   └── visualization_menu.py # Visualization options
+├── utils/                    # Utility functions and helpers
+│   ├── constants.py          # Application constants
+│   ├── logger.py             # Logging configuration
+│   ├── terminal.py           # Terminal utilities
+│   └── validators.py         # Input validation
+├── setup/                    # Installation and setup modules
+│   ├── environment.py        # Environment setup
+│   ├── dependencies.py       # Dependency management
+│   └── utilities.py          # Setup utilities
+├── flight_recordings/        # Input directory for launch videos
+├── results/                  # Output directory for processed data
+├── logs/                     # Application log files
+├── .tmp/                     # Temporary files directory
+├── main.py                   # Application entry point
+├── setup.py                  # Installation script
+├── requirements.txt          # Project dependencies
+└── LICENSE                   # License information
 ```
 
 ## 📊 Example Outputs
@@ -204,6 +272,9 @@ The tool generates several types of visualizations:
 - Adjust batch sizes in the menu for optimal performance on your system:
   - For systems with <16GB RAM: Use batch sizes of 5-10
   - For systems with >16GB RAM: Batch sizes up to 20-30 are effective
+- Consider pre-processing large videos to trim them to relevant segments
+- The application automatically detects and uses CUDA if available
+- For large videos, increase sample rate (e.g., process every 5th frame) to speed up processing
 
 ## 👥 Contributing
 
