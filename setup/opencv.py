@@ -27,25 +27,51 @@ def install_opencv_dependencies(pip_path, python_path, debug=False):
         # Install numpy first as it's required for OpenCV
         cmd = [pip_path, "install", "numpy"]
         print_debug(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         # Install build dependencies
         cmd = [pip_path, "install", "setuptools", "wheel", "cmake", "scikit-build"]
         print_debug(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         if platform.system() == "Windows":
             # Windows-specific dependencies
             cmd = [pip_path, "install", "ninja"]
             print_debug(f"Running Windows-specific command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
         elif platform.system() == "Linux":
             # Linux-specific dependencies - need to use system package manager
             try:
+                # Update package lists first
                 cmd = ["sudo", "apt-get", "update"]
                 print_debug(f"Running Linux-specific command: {' '.join(cmd)}")
-                subprocess.run(cmd, check=True)
                 
+                if debug:
+                    subprocess.run(cmd, check=True)
+                else:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print_debug(f"Command output: {result.stdout}")
+                    print_debug(f"Command error: {result.stderr}")
+                
+                # Install required packages
                 cmd = [
                     "sudo", "apt-get", "install", "-y",
                     "build-essential", "cmake", "git", "libgtk2.0-dev",
@@ -54,7 +80,13 @@ def install_opencv_dependencies(pip_path, python_path, debug=False):
                     "libdc1394-22-dev", "python3-dev", "python3-numpy"
                 ]
                 print_debug(f"Running Linux-specific command: {' '.join(cmd)}")
-                subprocess.run(cmd, check=True)
+                
+                if debug:
+                    subprocess.run(cmd, check=True)
+                else:
+                    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                    print_debug(f"Command output: {result.stdout}")
+                    print_debug(f"Command error: {result.stderr}")
             except subprocess.CalledProcessError as e:
                 print_error(f"Failed to install system dependencies: {e}")
                 print_debug(f"CalledProcessError during Linux dependencies installation: {e}")
@@ -191,7 +223,13 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
             "https://github.com/opencv/opencv.git", str(opencv_dir)
         ]
         print_debug(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         # Clone OpenCV contrib repository
         print_warning(f"Cloning OpenCV contrib {opencv_version}...")
@@ -204,7 +242,13 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
             "https://github.com/opencv/opencv_contrib.git", str(opencv_contrib_dir)
         ]
         print_debug(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         # Create build directory
         build_dir = opencv_dir / "build"
@@ -327,7 +371,13 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
         cmake_args = [arg for arg in cmake_args if arg]
         
         print_debug(f"Running CMake with arguments: {' '.join(cmake_args)}")
-        subprocess.run(cmake_args, check=True, cwd=str(build_dir))
+        
+        if debug:
+            subprocess.run(cmake_args, check=True, cwd=str(build_dir))
+        else:
+            result = subprocess.run(cmake_args, check=True, capture_output=True, text=True, cwd=str(build_dir))
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         # Build OpenCV
         print_warning("Building OpenCV (this may take a while)...")
@@ -341,13 +391,25 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
                 "--parallel", str(cpu_count)
             ]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, cwd=str(build_dir))
+            
+            if debug:
+                subprocess.run(cmd, check=True, cwd=str(build_dir))
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(build_dir))
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
         else:
             cmd = [
                 "make", f"-j{cpu_count}"
             ]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, cwd=str(build_dir))
+            
+            if debug:
+                subprocess.run(cmd, check=True, cwd=str(build_dir))
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(build_dir))
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
         
         # Install OpenCV
         print_warning("Installing OpenCV into virtual environment...")
@@ -357,13 +419,25 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
                 os.path.dirname(os.path.dirname(py_executable))
             ]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, cwd=str(build_dir))
+            
+            if debug:
+                subprocess.run(cmd, check=True, cwd=str(build_dir))
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(build_dir))
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
         else:
             cmd = [
                 "make", "install"
             ]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, cwd=str(build_dir))
+            
+            if debug:
+                subprocess.run(cmd, check=True, cwd=str(build_dir))
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=str(build_dir))
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
         
         # Verify installation
         try:
@@ -371,7 +445,15 @@ def compile_opencv_from_source(pip_path, python_path, step_num, cuda_version=Non
                 python_path, "-c", "import cv2; print(f'OpenCV {cv2.__version__} installed successfully')"
             ]
             print_debug(f"Running verification command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print(f"OpenCV {opencv_version} installed successfully")
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success(f"OpenCV {opencv_version} successfully compiled and installed")
             
             # Check CUDA support in OpenCV
@@ -465,34 +547,46 @@ def setup_opencv(pip_path, python_path, step_num=5.5, debug=False):
             # Uninstall existing OpenCV packages first to avoid conflicts
             cmd = [pip_path, "uninstall", "-y", "opencv-python", "opencv-python-headless"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, check=False, capture_output=True)
+            
             if debug:
-                print_debug(f"Uninstall output: {result.stdout.decode('utf-8', 'ignore') if result.stdout else ''}")
-                print_debug(f"Uninstall error: {result.stderr.decode('utf-8', 'ignore') if result.stderr else ''}")
+                subprocess.run(cmd, check=False)
+            else:
+                result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
             
             # Try to install the specific version required
             print_debug("Installing specific OpenCV version 4.11.0.86")
             cmd = [pip_path, "install", "opencv-python==4.11.0.86", "opencv-python-headless==4.11.0.86"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            
             if debug:
-                print_debug(f"Installation output: {result.stdout}")
-                print_debug(f"Installation error: {result.stderr}")
+                subprocess.run(cmd)
+            else:
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
             
             # Check if installation was successful by importing cv2
             cmd = [python_path, "-c", "import cv2; print(f'OpenCV {cv2.__version__} installed successfully')"]
             print_debug(f"Running verification command: {' '.join(cmd)}")
-            import_check = subprocess.run(cmd, capture_output=True, text=True)
             
-            if import_check.returncode == 0:
-                print_success(f"Pre-built OpenCV installed successfully: {import_check.stdout.strip()}")
-                return True
+            if debug:
+                import_check = subprocess.run(cmd)
+                if import_check.returncode == 0:
+                    print_success("Pre-built OpenCV installed successfully")
+                    return True
             else:
-                print_warning("Pre-built OpenCV installation failed or verification failed")
-                print_warning(f"Error: {import_check.stderr.strip()}")
-                print_warning("Falling back to compiling from source...")
-                print_debug(f"Verification failed with return code {import_check.returncode}")
-                print_debug(f"Error output: {import_check.stderr}")
+                import_check = subprocess.run(cmd, capture_output=True, text=True)
+                if import_check.returncode == 0:
+                    print_success(f"Pre-built OpenCV installed successfully: {import_check.stdout.strip()}")
+                    return True
+                else:
+                    print_warning("Pre-built OpenCV installation failed or verification failed")
+                    print_warning(f"Error: {import_check.stderr.strip()}")
+                    print_warning("Falling back to compiling from source...")
+                    print_debug(f"Verification failed with return code {import_check.returncode}")
+                    print_debug(f"Error output: {import_check.stderr}")
         except Exception as e:
             print_warning(f"Error installing pre-built OpenCV: {e}")
             print_warning("Falling back to compiling from source...")

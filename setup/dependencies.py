@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+import sys
 
 from .utilities import print_step, print_success, print_warning, print_error, print_debug
 
@@ -41,10 +42,18 @@ def install_torch_with_cuda(pip_path, cuda_version, debug=False):
         print_debug(f"Using PyTorch URL: {url}")
         
         try:
-            # Install PyTorch with specific CUDA support - allow output to stream to console
+            # Install PyTorch with specific CUDA support
             cmd = [pip_path, "install", "torch", "torchvision", "--index-url", url]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success(f"PyTorch installed with CUDA {cuda_version} support")
             return True
         except subprocess.CalledProcessError as e:
@@ -60,10 +69,18 @@ def install_torch_with_cuda(pip_path, cuda_version, debug=False):
         print_debug(f"Using fallback PyTorch URL: {url}")
         
         try:
-            # Install PyTorch with CUDA 11.8 support - allow output to stream to console
+            # Install PyTorch with CUDA 11.8 support
             cmd = [pip_path, "install", "torch", "torchvision", "--index-url", url]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success(f"PyTorch installed with CUDA 11.8 support (fallback for CUDA {cuda_version})")
             return True
         except subprocess.CalledProcessError as e:
@@ -78,7 +95,15 @@ def install_torch_with_cuda(pip_path, cuda_version, debug=False):
         print_warning("Installing CPU-only PyTorch...")
         cmd = [pip_path, "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu"]
         print_debug(f"Running CPU-only command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        # Only show output in real-time if debug is enabled
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
+            
         print_success("CPU-only PyTorch installed")
         return True
     except subprocess.CalledProcessError as e:
@@ -122,10 +147,30 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False, debug=False)
     if platform.system() == "Linux":
         print_warning("Installing Python Tkinter package for Linux...")
         try:
-            # Show real-time output by not capturing it
+            # Update package lists first
+            cmd = ["sudo", "apt-get", "update"]
+            print_debug(f"Running command: {' '.join(cmd)}")
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
+            # Install Tkinter
             cmd = ["sudo", "apt-get", "install", "-y", "python3-tk"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success("Successfully installed python3-tk")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install python3-tk: {e}")
@@ -149,11 +194,18 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False, debug=False)
     print_debug(f"Windows-only packages that will be skipped on non-Windows: {windows_only_packages}")
     
     try:
-        # Upgrade pip first using the virtual environment's python - show real-time output
+        # Upgrade pip first using the virtual environment's python
         print_warning("Upgrading pip in virtual environment...")
         cmd = [python_path, "-m", "pip", "install", "--upgrade", "pip"]
         print_debug(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
+        
+        # Only show output in real-time if debug is enabled
+        if debug:
+            subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            print_debug(f"Command output: {result.stdout}")
+            print_debug(f"Command error: {result.stderr}")
         
         # Try to read requirements.txt with different encodings
         requirements = []
@@ -214,13 +266,20 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False, debug=False)
                 f.write(line)
                 print_debug(f"Added to modified requirements: {line.strip()}")
         
-        # Install other dependencies first - allow output to stream to console
+        # Install other dependencies first
         print_warning("Installing dependencies from requirements.txt...")
         try:
-            # Run without capture_output to show real-time installation progress
+            # Run with or without real-time output based on debug mode
             cmd = [pip_path, "install", "-r", temp_req_path]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success("Successfully installed dependencies from requirements.txt")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install dependencies from requirements file")
@@ -236,11 +295,18 @@ def install_dependencies(cuda_version, step_num=6, force_cpu=False, debug=False)
             
             for package in individual_packages:
                 try:
-                    # Show real-time output for individual package installation
+                    # Install individual package with debug control
                     print_warning(f"Installing {package}...")
                     cmd = [pip_path, "install", package]
                     print_debug(f"Running command: {' '.join(cmd)}")
-                    subprocess.run(cmd, check=True)
+                    
+                    if debug:
+                        subprocess.run(cmd, check=True)
+                    else:
+                        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                        print_debug(f"Command output: {result.stdout}")
+                        print_debug(f"Command error: {result.stderr}")
+                        
                     print_success(f"Successfully installed {package}")
                 except subprocess.CalledProcessError as e:
                     print_error(f"Failed to install {package}")

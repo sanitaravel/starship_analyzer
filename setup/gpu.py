@@ -149,13 +149,30 @@ def install_nvidia_drivers(step_num=4, debug=False):
     elif platform.system() == "Linux":
         try:
             print_warning("Installing NVIDIA drivers for Linux...")
+            # Update package lists first
             cmd = ["sudo", "apt-get", "update"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
             
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+            
+            # Install NVIDIA drivers
             cmd = ["sudo", "apt-get", "install", "-y", "nvidia-driver-470"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success("NVIDIA drivers installed successfully")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install NVIDIA drivers: {e}")
@@ -188,13 +205,30 @@ def install_cuda_toolkit(step_num=5, debug=False):
     elif platform.system() == "Linux":
         try:
             print_warning("Installing CUDA Toolkit for Linux...")
+            # Update package lists first
             cmd = ["sudo", "apt-get", "update"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
             
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+            
+            # Install CUDA toolkit
             cmd = ["sudo", "apt-get", "install", "-y", "nvidia-cuda-toolkit"]
             print_debug(f"Running command: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True)
+            
+            # Only show output in real-time if debug is enabled
+            if debug:
+                subprocess.run(cmd, check=True)
+            else:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                print_debug(f"Command output: {result.stdout}")
+                print_debug(f"Command error: {result.stderr}")
+                
             print_success("CUDA Toolkit installed successfully")
         except subprocess.CalledProcessError as e:
             print_error(f"Failed to install CUDA Toolkit: {e}")
