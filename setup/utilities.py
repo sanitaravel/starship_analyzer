@@ -38,7 +38,7 @@ def print_next_steps():
     print(f"\n{BOLD}Next Steps:{RESET}")
     print(f"1. Activate the virtual environment:")
     print(f"   {YELLOW}{activate_cmd}{RESET}")
-    print(f"2. Place your flight recordings in the 'flight_recordings' directory")
+    print(f"2. You can download flight recordings directly through the app or manually place them in the 'flight_recordings' directory.")
     print(f"3. Run the application:")
     print(f"   {YELLOW}python main.py{RESET}")
     print("\n" + "="*60 + "\n")
