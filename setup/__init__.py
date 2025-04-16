@@ -6,10 +6,11 @@ import argparse
 import platform
 import sys
 import subprocess
+import os
 
 from .utilities import (
     print_step, print_success, print_warning, print_error,
-    print_next_steps, BOLD, RESET
+    print_next_steps, BOLD, RESET, set_debug_mode, print_debug
 )
 from .environment import create_virtual_environment, create_required_directories
 from .gpu import check_cuda_version, install_nvidia_drivers, install_cuda_toolkit
@@ -25,6 +26,7 @@ def parse_arguments():
     parser.add_argument("--keep-venv", action="store_true", help="Keep existing virtual environment if it exists")
     parser.add_argument("--force-cpu", action="store_true", help="Force CPU-only installation")
     parser.add_argument("--setup-gpu", action="store_true", help="Attempt GPU setup if CUDA not detected")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
     return parser.parse_args()
 
 def run_setup():
@@ -32,6 +34,15 @@ def run_setup():
     Run the setup process for Starship Analyzer.
     """
     args = parse_arguments()
+    
+    # Set debug mode first so all modules can use it
+    set_debug_mode(args.debug)
+    
+    if args.debug:
+        print_debug("Debug mode enabled")
+        print_debug(f"Python version: {sys.version}")
+        print_debug(f"Platform: {platform.platform()}")
+        print_debug(f"Running from: {os.getcwd()}")
     
     print_step(0, "Starting Starship Analyzer Setup")
     
@@ -43,7 +54,8 @@ def run_setup():
         1, 
         unattended=args.unattended, 
         recreate=args.recreate_venv, 
-        keep=args.keep_venv
+        keep=args.keep_venv,
+        debug=args.debug
     )
     
     if not venv_created:
@@ -51,10 +63,10 @@ def run_setup():
         sys.exit(1)
     
     # Step 2: Create required directories
-    create_required_directories(2)
+    create_required_directories(2, debug=args.debug)
     
     # Step 3: Check CUDA version before installing dependencies
-    cuda_version = check_cuda_version(3)
+    cuda_version = check_cuda_version(3, debug=args.debug)
     
     # Step 4-5: Optional GPU setup if CUDA not detected
     if not cuda_version and not args.force_cpu:
@@ -72,13 +84,13 @@ def run_setup():
             
         if setup_gpu:
             # Step 4: Install NVIDIA drivers
-            install_nvidia_drivers(4)
+            install_nvidia_drivers(4, debug=args.debug)
             # Step 5: Install CUDA Toolkit
-            install_cuda_toolkit(5)
+            install_cuda_toolkit(5, debug=args.debug)
             
             # Check CUDA version again after installation
             print_warning("Checking for CUDA again after installation...")
-            cuda_version = check_cuda_version(5.5)  # Using 5.5 to indicate it's between steps 5 and 6
+            cuda_version = check_cuda_version(5.5, debug=args.debug)  # Using 5.5 to indicate it's between steps 5 and 6
             
             if cuda_version:
                 print_success(f"CUDA {cuda_version} successfully detected after installation!")
@@ -101,14 +113,18 @@ def run_setup():
         python_path = "venv/bin/python"
         pip_path = "venv/bin/pip"
     
+    if args.debug:
+        print_debug(f"Using Python path: {os.path.abspath(python_path)}")
+        print_debug(f"Using pip path: {os.path.abspath(pip_path)}")
+    
     # Step 6: Install OpenCV with proper compilation
-    if not setup_opencv(pip_path, python_path):
+    if not setup_opencv(pip_path, python_path, debug=args.debug):
         print_warning("OpenCV setup encountered issues. Continuing with other dependencies.")
     
     # Step 7: Install dependencies with the detected CUDA version
     deps_installed = False
     if venv_created:
-        deps_installed = install_dependencies(cuda_version, 6, force_cpu=args.force_cpu)
+        deps_installed = install_dependencies(cuda_version, 6, force_cpu=args.force_cpu, debug=args.debug)
         if not deps_installed:
             print_error("Failed to install dependencies. Setup incomplete.")
             sys.exit(1)
@@ -117,7 +133,7 @@ def run_setup():
     all_successful = False
     gpu_available = False
     if deps_installed:
-        all_successful, gpu_available = verify_installations(python_path, 7)
+        all_successful, gpu_available = verify_installations(python_path, 7, debug=args.debug)
     
     # Print summary
     print("\n" + "="*60)

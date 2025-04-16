@@ -5,7 +5,16 @@ GREEN = "\033[92m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
 BOLD = "\033[1m"
+BLUE = "\033[94m"  # Added blue color for debug messages
 RESET = "\033[0m"
+
+# Global debug flag
+DEBUG = False
+
+def set_debug_mode(debug=False):
+    """Set the global debug flag."""
+    global DEBUG
+    DEBUG = debug
 
 def print_step(step_num, message):
     """Print a step in the setup process."""
@@ -22,6 +31,11 @@ def print_warning(message):
 def print_error(message):
     """Print an error message."""
     print(f"{RED}✗ {message}{RESET}")
+
+def print_debug(message):
+    """Print a debug message if debug mode is enabled."""
+    if DEBUG:
+        print(f"{BLUE}DEBUG: {message}{RESET}")
 
 def print_next_steps():
     """Print instructions for the next steps."""
