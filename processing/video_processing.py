@@ -139,23 +139,11 @@ def validate_video(video_path: str) -> bool:
     if file_size < 1024 * 1024:  # Less than 1MB
         logger.warning(f"Video file is suspiciously small ({file_size/1024/1024:.2f}MB). It might be corrupted.")
     
-    # Redirect stderr to capture codec warnings
-    import io
-    import sys
-    stderr_backup = sys.stderr
-    sys.stderr = io.StringIO()
+    # Note about H.264 warnings
+    logger.info("Note: You may see H.264 warnings like 'co located POCs unavailable' or 'mmco: unref short failure'. "
+               "These are harmless and can be safely ignored.")
     
     cap = cv2.VideoCapture(video_path)
-    
-    # Check for H.264 decoder warnings
-    stderr_output = sys.stderr.getvalue()
-    sys.stderr = stderr_backup
-    
-    h264_warnings = False
-    if "co located POCs unavailable" in stderr_output or "mmco: unref short failure" in stderr_output:
-        h264_warnings = True
-        logger.warning(f"H.264 decoder warnings detected: This may indicate minor stream inconsistencies "
-                      f"but usually doesn't affect video playback.")
     
     if not cap.isOpened():
         logger.error(f"Failed to open video file at {video_path}")
@@ -201,12 +189,7 @@ def validate_video(video_path: str) -> bool:
     duration_seconds = frame_count / fps if fps > 0 else 0
     logger.debug(f"Video duration: {duration_seconds:.2f} seconds (~{duration_seconds/60:.2f} minutes)")
     
-    if h264_warnings:
-        logger.info(f"Video at {video_path} validated successfully with H.264 decoder warnings. "
-                   f"The program should still work correctly.")
-    else:
-        logger.info(f"Successfully validated video at {video_path}")
-        
+    logger.info(f"Successfully validated video at {video_path}")
     cap.release()
     return True
 

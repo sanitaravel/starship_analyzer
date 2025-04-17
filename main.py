@@ -5,6 +5,10 @@ import logging
 from utils.logger import start_new_session, get_logger, set_global_log_level
 from utils.terminal import clear_screen
 from ui import display_menu
+from utils.suppress_warnings import suppress_ffmpeg_warnings
+
+# Call this early in your application startup
+suppress_ffmpeg_warnings()
 
 # Initialize logger
 logger = get_logger(__name__)
