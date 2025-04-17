@@ -117,7 +117,7 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
 
 def validate_video(video_path: str) -> bool:
     """
-    Validate that the video file exists and can be opened.
+    Validate that the video file exists, is an MP4, and can be properly opened and read.
 
     Args:
         video_path (str): The path to the video file.
@@ -128,14 +128,54 @@ def validate_video(video_path: str) -> bool:
     if not os.path.exists(video_path):
         logger.error(f"Video file not found at {video_path}")
         return False
-
+        
+    # Check file extension
+    _, extension = os.path.splitext(video_path)
+    if extension.lower() != '.mp4':
+        logger.warning(f"File {video_path} is not an MP4 file. It might not be properly supported.")
+    
+    # Check file size
+    file_size = os.path.getsize(video_path)
+    if file_size < 1024 * 1024:  # Less than 1MB
+        logger.warning(f"Video file is suspiciously small ({file_size/1024/1024:.2f}MB). It might be corrupted.")
+    
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         logger.error(f"Failed to open video file at {video_path}")
         return False
     
+    # Check video properties
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if frame_count <= 0:
+        logger.error(f"Video contains no frames")
+        cap.release()
+        return False
+    
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        logger.warning(f"Invalid FPS value: {fps}")
+    
+    # Check if we can read at least one frame
+    ret, frame = cap.read()
+    if not ret or frame is None:
+        logger.error(f"Cannot read frames from the video file")
+        cap.release()
+        return False
+    
+    # Reset position to beginning
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    
+    # Check video codec
+    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+    codec_str = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+    logger.debug(f"Video codec: {codec_str}")
+    
+    # Get video duration
+    duration_seconds = frame_count / fps if fps > 0 else 0
+    logger.debug(f"Video duration: {duration_seconds:.2f} seconds (~{duration_seconds/60:.2f} minutes)")
+    
     cap.release()
-    logger.debug(f"Successfully validated video at {video_path}")
+    logger.info(f"Successfully validated video at {video_path}")
     return True
 
 
