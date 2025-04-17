@@ -16,85 +16,72 @@ def install_torch_with_cuda(pip_path, cuda_version, debug=False):
     Returns:
         bool: True if installation was successful, False otherwise
     """
-    # Map CUDA versions to PyTorch installation commands
-    cuda_map = {
-        "12.6": "cu126",
-        "12.4": "cu124",
-        "11.8": "cu118",
-        "11.7": "cu118",  # Fall back to 11.8 for 11.7
-        "11.6": "cu118",  # Fall back to 11.8 for 11.6
-        "11.5": "cu118",  # Fall back to 11.8 for 11.5
-    }
-    
     # Normalize CUDA version - take only major.minor
     if cuda_version:
         cuda_version = ".".join(cuda_version.split(".")[:2])
-    
-    print_debug(f"Normalized CUDA version: {cuda_version}", debug)
-    
-    # Determine installation command
-    if cuda_version and cuda_version in cuda_map:
-        cuda_tag = cuda_map[cuda_version]
-        print_info(f"Installing PyTorch with CUDA {cuda_version} support ({cuda_tag})...")
-        url = f"https://download.pytorch.org/whl/{cuda_tag}"
+        print_debug(f"Normalized CUDA version: {cuda_version}", debug)
         
+        # Convert to float for version comparison
         try:
-            # Determine capture_output based on debug flag
-            if debug:
-                # Show real-time output in debug mode
-                print_debug("Running with real-time output in debug mode", debug)
-                subprocess.run(
-                    [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                    check=True
-                )
+            cuda_version_float = float(cuda_version)
+            
+            # Apply version-based selection logic
+            if cuda_version_float >= 12.6:
+                cuda_tag = "cu126"
+            elif cuda_version_float >= 12.4:
+                cuda_tag = "cu124"
             else:
-                # Suppress output in normal mode
-                print_info("Installing PyTorch (this may take a while)...")
-                result = subprocess.run(
-                    [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                    check=True,
-                    capture_output=True,
-                    text=True
+                cuda_tag = "cu118"
+                
+            print_info(f"Installing PyTorch with CUDA {cuda_version} support (using {cuda_tag})...")
+            url = f"https://download.pytorch.org/whl/{cuda_tag}"
+            
+            try:
+                # Determine capture_output based on debug flag
+                if debug:
+                    # Show real-time output in debug mode
+                    print_debug("Running with real-time output in debug mode", debug)
+                    subprocess.run(
+                        [pip_path, "install", "torch", "torchvision", "--index-url", url],
+                        check=True
+                    )
+                else:
+                    # Suppress output in normal mode
+                    print_info("Installing PyTorch (this may take a while)...")
+                    result = subprocess.run(
+                        [pip_path, "install", "torch", "torchvision", "--index-url", url],
+                        check=True,
+                        capture_output=True,
+                        text=True
+                    )
+                
+                # Verify CUDA installation was successful
+                print_info("Verifying PyTorch CUDA installation...")
+                cuda_check_cmd = "import torch; print('CUDA Available:' + str(torch.cuda.is_available()) + ', Version:' + torch.__version__)"
+                cuda_check = subprocess.run(
+                    [os.path.join(os.path.dirname(pip_path), "python"), "-c", cuda_check_cmd],
+                    capture_output=True, text=True, check=False
                 )
                 
-            print_success(f"PyTorch installed with CUDA {cuda_version} support")
-            return True
-        except subprocess.CalledProcessError as e:
-            print_error(f"PyTorch installation with CUDA {cuda_version} failed")
-            if debug and hasattr(e, 'stderr'):
-                print_debug(f"Error details: {e.stderr}", True)
-            print_warning("Falling back to CPU-only PyTorch installation")
-    elif cuda_version:
-        # CUDA is installed but version not in cuda_map - use cu118 as fallback
-        print_info(f"CUDA {cuda_version} detected but not in supported versions map")
-        print_info("Installing PyTorch with CUDA 11.8 support as fallback...")
-        url = "https://download.pytorch.org/whl/cu118"
-        
-        try:
-            if debug:
-                print_debug("Running PyTorch fallback installation with real-time output", debug)
-                subprocess.run(
-                    [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                    check=True
-                )
-            else:
-                print_info("Installing PyTorch (this may take a while)...")
-                subprocess.run(
-                    [pip_path, "install", "torch", "torchvision", "--index-url", url],
-                    check=True,
-                    capture_output=True,
-                    text=True
-                )
-                
-            print_success(f"PyTorch installed with CUDA 11.8 support (fallback for CUDA {cuda_version})")
-            return True
-        except subprocess.CalledProcessError as e:
-            print_error(f"PyTorch installation with CUDA 11.8 fallback failed")
-            if debug and hasattr(e, 'stderr'):
-                print_debug(f"Error details: {e.stderr}", True)
-            print_warning("Falling back to CPU-only PyTorch installation")
+                if "CUDA Available:True" in cuda_check.stdout:
+                    print_success(f"PyTorch successfully installed with CUDA {cuda_version} support")
+                    return True
+                else:
+                    print_warning(f"PyTorch installed, but CUDA support may not be working. Version: {cuda_check.stdout.strip()}")
+                    if "+cpu" in cuda_check.stdout:
+                        print_warning("CPU-only version was installed despite requesting CUDA support")
+                        print_debug(f"Full PyTorch info: {cuda_check.stdout}", debug)
+                    return True
+                    
+            except subprocess.CalledProcessError as e:
+                print_error(f"PyTorch installation with CUDA {cuda_version} failed")
+                if debug and hasattr(e, 'stderr'):
+                    print_debug(f"Error details: {e.stderr}", True)
+                print_warning("Falling back to CPU-only PyTorch installation")
+        except ValueError:
+            print_warning(f"Could not parse CUDA version '{cuda_version}' as a number. Falling back to CPU-only installation.")
     else:
-        print_warning("No CUDA detected, will use CPU-only version of PyTorch")  # Changed from info to warning
+        print_warning("No CUDA detected, will use CPU-only version of PyTorch")
     
     # Fall back to CPU-only installation
     try:
