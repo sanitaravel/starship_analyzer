@@ -570,7 +570,7 @@ def process_frames(video_path, batch_size=30, start_time=None, end_time=None, st
                 break
                 
             # Process the frame
-            frame_result = process_frame(frame, current_frame, show_progress=False)
+            frame_result = process_single_frame(current_frame, frame, False, False, False)
             if frame_result:
                 batch_results.append(frame_result)
             
@@ -592,26 +592,45 @@ def process_frames(video_path, batch_size=30, start_time=None, end_time=None, st
     cap.release()
     return results
 
-def process_frame(frame, frame_idx, show_progress=False):
+def process_single_frame(frame_idx, frame, display_rois=False, debug=False, show_progress=False):
     """
-    Process a single frame.
+    Process a single frame in the alternative processing path.
     
     Args:
-        frame (numpy.ndarray): Frame to process
         frame_idx (int): Index of the frame
+        frame (numpy.ndarray): Frame to process
+        display_rois (bool): Whether to display ROIs
+        debug (bool): Whether to enable debug mode
         show_progress (bool): Whether to show individual frame progress
 
     Returns:
         dict: Results for the frame
     """
-    # Process the frame as before
-    # ...existing code...
-    
-    # Only show progress if explicitly requested (we now focus on batch progress)
-    if show_progress:
-        logger.debug(f"Processed frame {frame_idx}")
-    
-    # ...existing code...
+    try:
+        superheavy_data, starship_data, time_data = extract_data(
+            frame, display_rois=display_rois, debug=debug)
+        frame_result = {
+            "frame_number": frame_idx,
+            "superheavy": superheavy_data,
+            "starship": starship_data,
+            "time": time_data
+        }
+        
+        # Only show progress if explicitly requested (we now focus on batch progress)
+        if show_progress:
+            logger.debug(f"Processed frame {frame_idx}")
+            
+        return frame_result
+    except Exception as e:
+        logger.error(f"Error processing frame {frame_idx}: {str(e)}")
+        # Return a minimal result to avoid breaking the pipeline
+        return {
+            "frame_number": frame_idx,
+            "superheavy": {},
+            "starship": {},
+            "time": None,
+            "error": str(e)
+        }
 
 def summarize_batch(batch_results, start_frame, end_frame):
     """
