@@ -128,6 +128,13 @@ def process_complete_video():
         inquirer.Text('sample_rate', 
                      message="Sample rate (process every Nth frame, default: 1)", 
                      validate=validate_positive_number),
+        # Add border options
+        inquirer.List(
+            'border_type',
+            message="How would you like to specify processing borders?",
+            choices=['Time-based (seconds)', 'Frame-based', 'Process entire video'],
+            default='Process entire video'
+        )
     ]
     answers = inquirer.prompt(questions)
     answers['video_path'] = video_answer['video_path']  # Combine answers
@@ -135,11 +142,56 @@ def process_complete_video():
     batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
     sample_rate = int(answers['sample_rate']) if answers['sample_rate'] else 1
     
+    # Get border information based on user's choice
+    start_time = None
+    end_time = None
+    start_frame = None
+    end_frame = None
+    
+    if answers['border_type'] == 'Time-based (seconds)':
+        time_questions = [
+            inquirer.Text(
+                'start_time', 
+                message="Start time in seconds (default: 0)", 
+                validate=validate_number
+            ),
+            inquirer.Text(
+                'end_time', 
+                message="End time in seconds (default: process to end)", 
+                validate=validate_number
+            )
+        ]
+        time_answers = inquirer.prompt(time_questions)
+        
+        start_time = float(time_answers['start_time']) if time_answers['start_time'] else 0
+        end_time = float(time_answers['end_time']) if time_answers['end_time'] else None
+        
+    elif answers['border_type'] == 'Frame-based':
+        frame_questions = [
+            inquirer.Text(
+                'start_frame', 
+                message="Start frame number (default: 0)", 
+                validate=validate_number
+            ),
+            inquirer.Text(
+                'end_frame', 
+                message="End frame number (default: process to end)", 
+                validate=validate_number
+            )
+        ]
+        frame_answers = inquirer.prompt(frame_questions)
+        
+        start_frame = int(frame_answers['start_frame']) if frame_answers['start_frame'] else 0
+        end_frame = int(frame_answers['end_frame']) if frame_answers['end_frame'] else None
+    
     logger.debug(f"Processing complete video {answers['video_path']} with launch_number={answers['launch_number']}, "
                 f"batch_size={batch_size}, sample_rate={sample_rate}")
+    logger.debug(f"Borders: start_time={start_time}, end_time={end_time}, start_frame={start_frame}, end_frame={end_frame}")
+    
     iterate_through_frames(
         answers['video_path'], int(answers['launch_number']), debug=DEBUG_MODE, 
-        batch_size=batch_size, sample_rate=sample_rate)
+        batch_size=batch_size, sample_rate=sample_rate,
+        start_time=start_time, end_time=end_time, start_frame=start_frame, end_frame=end_frame)
     input("\nPress Enter to continue...")
     clear_screen()
     return True
