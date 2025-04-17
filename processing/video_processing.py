@@ -139,7 +139,24 @@ def validate_video(video_path: str) -> bool:
     if file_size < 1024 * 1024:  # Less than 1MB
         logger.warning(f"Video file is suspiciously small ({file_size/1024/1024:.2f}MB). It might be corrupted.")
     
+    # Redirect stderr to capture codec warnings
+    import io
+    import sys
+    stderr_backup = sys.stderr
+    sys.stderr = io.StringIO()
+    
     cap = cv2.VideoCapture(video_path)
+    
+    # Check for H.264 decoder warnings
+    stderr_output = sys.stderr.getvalue()
+    sys.stderr = stderr_backup
+    
+    h264_warnings = False
+    if "co located POCs unavailable" in stderr_output or "mmco: unref short failure" in stderr_output:
+        h264_warnings = True
+        logger.warning(f"H.264 decoder warnings detected: This may indicate minor stream inconsistencies "
+                      f"but usually doesn't affect video playback.")
+    
     if not cap.isOpened():
         logger.error(f"Failed to open video file at {video_path}")
         return False
@@ -155,10 +172,20 @@ def validate_video(video_path: str) -> bool:
     if fps <= 0:
         logger.warning(f"Invalid FPS value: {fps}")
     
-    # Check if we can read at least one frame
-    ret, frame = cap.read()
-    if not ret or frame is None:
-        logger.error(f"Cannot read frames from the video file")
+    # Test reading frames from different positions
+    positions_to_test = [0, min(100, frame_count//2), max(0, frame_count-1)]
+    frame_read_success = True
+    
+    for pos in positions_to_test:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+        ret, frame = cap.read()
+        if not ret or frame is None:
+            logger.warning(f"Cannot read frame at position {pos}/{frame_count}")
+            frame_read_success = False
+            break
+    
+    if not frame_read_success:
+        logger.error(f"Cannot reliably read frames from the video file")
         cap.release()
         return False
     
@@ -174,8 +201,13 @@ def validate_video(video_path: str) -> bool:
     duration_seconds = frame_count / fps if fps > 0 else 0
     logger.debug(f"Video duration: {duration_seconds:.2f} seconds (~{duration_seconds/60:.2f} minutes)")
     
+    if h264_warnings:
+        logger.info(f"Video at {video_path} validated successfully with H.264 decoder warnings. "
+                   f"The program should still work correctly.")
+    else:
+        logger.info(f"Successfully validated video at {video_path}")
+        
     cap.release()
-    logger.info(f"Successfully validated video at {video_path}")
     return True
 
 
