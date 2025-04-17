@@ -86,7 +86,10 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
             raise ValueError(f"Failed to open video file: {video_path}")
             
         results = []
-        for frame_number in batch:
+        batch_size = len(batch)
+        
+        # Process each frame in the batch 
+        for i, frame_number in enumerate(batch):
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
             ret, frame = cap.read()
             if ret:
@@ -96,11 +99,10 @@ def process_batch(batch: List[int], video_path: str, display_rois: bool, debug: 
                 if frame_result["time"] and frame_result["time"].get('hours') == 0 and frame_result["time"].get('minutes') == 0 and frame_result["time"].get('seconds') == 0:
                     zero_time_met = True
             
-            # Update progress counter if provided - fixed to work with ValueProxy
+            # Update progress counter if provided - we no longer use this for tqdm
             if progress_counter is not None:
-                # No need to call get_lock() on ValueProxy objects
                 progress_counter.value += 1
-                    
+                
         cap.release()
         
         # Release GPU resources at the end of batch processing
@@ -267,10 +269,7 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
     zero_time_met = False
     zero_time_frame = None
     
-    # Calculate total number of frames to process
-    total_frames = sum(len(batch) for batch in batches)
-    
-    # Create a shared counter for progress tracking
+    # Create a shared counter for tracking completed batches
     manager = multiprocessing.Manager()
     progress_counter = manager.Value('i', 0)
     
@@ -283,20 +282,25 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
             futures.append(executor.submit(process_batch, batch, video_path,
                                          display_rois, debug, zero_time_met, progress_counter))
         
-        # Create a progress bar that tracks frame processing, not batch completion
-        with tqdm(total=total_frames, desc="Processing frames") as pbar:
-            last_counter_value = 0
-            
+        # Create a progress bar that tracks batch completion, not individual frames
+        total_batches = len(batches)
+        completed_batches = 0
+        
+        # Create a progress bar based on batches
+        with tqdm(total=total_batches, desc="Processing batches") as pbar:
             # Process results as they complete
             for future in as_completed(futures):
                 try:
                     batch_results = future.result()
                     results.extend(batch_results)
                     
-                    # Update progress bar based on shared counter
-                    current_count = progress_counter.value
-                    pbar.update(current_count - last_counter_value)
-                    last_counter_value = current_count
+                    # Update progress - one batch completed
+                    completed_batches += 1
+                    pbar.update(1)
+                    
+                    # Log batch progress percentage
+                    progress_percent = (completed_batches / total_batches) * 100
+                    logger.info(f"Batch progress: {progress_percent:.1f}% ({completed_batches}/{total_batches})")
                     
                     # Check for zero time frame
                     if zero_time_frame is None:
@@ -309,7 +313,16 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
                 except Exception as e:
                     logger.error(f"Error processing batch: {str(e)}")
                     logger.debug(traceback.format_exc())
+                    # Still update progress even if a batch fails
+                    completed_batches += 1
+                    pbar.update(1)
 
+    # Log final summary
+    total_frames_processed = sum(len(batch) for batch in batches)
+    logger.info(f"Completed processing {completed_batches} batches with {len(results)} frames")
+    if completed_batches < total_batches:
+        logger.warning(f"Some batches failed: {completed_batches}/{total_batches} completed")
+        
     return results, zero_time_frame
 
 
