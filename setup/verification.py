@@ -1,14 +1,15 @@
 import subprocess
 
-from .utilities import print_step, print_success, print_warning, print_error
+from .utilities import print_step, print_success, print_info, print_warning, print_error, print_debug
 
-def verify_installations(python_path, step_num=7):
+def verify_installations(python_path, step_num=7, debug=False):
     """
     Verify that all necessary dependencies are installed correctly.
     
     Args:
         python_path (str): Path to the Python executable
         step_num (int or float): Step number to display in the console output
+        debug (bool): Whether to show detailed debug output
         
     Returns:
         tuple: (bool for success, bool for GPU available)
@@ -26,10 +27,12 @@ def verify_installations(python_path, step_num=7):
     all_successful = True
     gpu_available = False
     
+    print_info("Checking installed packages...")
     for module_name, description in dependencies:
         try:
             # Try to import the module
             cmd = f"import {module_name}; print('Success')"
+            print_info(f"Verifying {description}...")
             result = subprocess.run([python_path, "-c", cmd], 
                                   capture_output=True, text=True, check=False)
             
@@ -44,16 +47,20 @@ def verify_installations(python_path, step_num=7):
                 version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown version"
                 
                 print_success(f"{description} - Installed ({version})")
+                print_debug(f"Full import details for {module_name}: Success with version {version}", debug)
             else:
                 print_error(f"{description} - Failed to import")
                 all_successful = False
                 print_warning(f"Error: {result.stderr.strip()}")
+                print_debug(f"Full import error for {module_name}: {result.stderr}", debug)
         except Exception as e:
             print_error(f"{description} - Error during verification: {e}")
+            print_debug(f"Exception details: {repr(e)}", debug)
             all_successful = False
     
     # Special check for GPU support
     try:
+        print_info("Checking GPU availability...")
         gpu_cmd = "import torch; print(torch.cuda.is_available())"
         gpu_check = subprocess.run([python_path, "-c", gpu_cmd], 
                                   capture_output=True, text=True, check=True)
@@ -66,18 +73,23 @@ def verify_installations(python_path, step_num=7):
             
             print_success(f"GPU Acceleration - Available ({gpu_name})")
             gpu_available = True
+            print_debug(f"GPU device information: {gpu_name}", debug)
             
             # Check which CUDA version PyTorch is using
+            print_info("Checking CUDA version...")
             cuda_ver_cmd = "import torch; print(torch.version.cuda)"
             cuda_ver_check = subprocess.run([python_path, "-c", cuda_ver_cmd], 
                                          capture_output=True, text=True, check=False)
             if cuda_ver_check.returncode == 0:
                 cuda_ver = cuda_ver_check.stdout.strip()
                 print_success(f"PyTorch is using CUDA version: {cuda_ver}")
+                print_debug(f"Additional CUDA info - PyTorch built with: {cuda_ver}", debug)
         else:
-            print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")
+            print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")  # Changed from info to warning
+            print_debug("No GPU detected: torch.cuda.is_available() returned False", debug)
     except Exception as e:
         print_warning(f"GPU Acceleration - Could not verify: {e}")
+        print_debug(f"GPU verification exception details: {repr(e)}", debug)
     
     # Return overall success status
     if all_successful:

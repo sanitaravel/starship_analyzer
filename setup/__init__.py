@@ -4,10 +4,10 @@ import platform
 import argparse
 
 from .environment import create_virtual_environment, create_required_directories
-from .gpu import check_cuda_version
+from .gpu import check_cuda_version, install_nvidia_drivers, install_cuda_toolkit
 from .dependencies import install_dependencies
 from .verification import verify_installations
-from .utilities import print_step, print_success, print_warning, print_error, print_next_steps
+from .utilities import print_step, print_success, print_info, print_warning, print_error, print_debug, print_next_steps
 
 def run_setup(args=None):
     """
@@ -24,6 +24,7 @@ def run_setup(args=None):
         parser.add_argument("--unattended", action="store_true", help="Run in unattended mode")
         parser.add_argument("--recreate", action="store_true", help="Recreate virtual environment")
         parser.add_argument("--keep", action="store_true", help="Keep existing virtual environment")
+        parser.add_argument("--debug", action="store_true", help="Show detailed installation output")
         args = parser.parse_args()
     
     # If in update mode, skip environment creation and just update dependencies
@@ -35,12 +36,15 @@ def run_setup(args=None):
     print("   Starship Analyzer Setup")
     print("="*60 + "\n")
     
+    print_debug("Debug mode enabled: Showing detailed output", args.debug)
+    
     # Create virtual environment
     if not create_virtual_environment(
         step_num=1, 
         unattended=args.unattended, 
         recreate=args.recreate, 
-        keep=args.keep
+        keep=args.keep,
+        debug=args.debug
     ):
         return
     
@@ -48,7 +52,7 @@ def run_setup(args=None):
     create_required_directories(step_num=2)
     
     # Check CUDA version for PyTorch installation
-    cuda_version = check_cuda_version(step_num=3)
+    cuda_version = check_cuda_version(step_num=3, debug=args.debug)
     
     # Get the python path based on the OS
     if platform.system() == "Windows":
@@ -60,7 +64,8 @@ def run_setup(args=None):
     install_success = install_dependencies(
         cuda_version,
         step_num=6,
-        force_cpu=args.force_cpu
+        force_cpu=args.force_cpu,
+        debug=args.debug
     )
     
     if not install_success:
@@ -68,7 +73,7 @@ def run_setup(args=None):
         return
     
     # Verify installations
-    success, gpu_available = verify_installations(python_path, step_num=7)
+    success, gpu_available = verify_installations(python_path, step_num=7, debug=args.debug)
     
     # Print next steps if installation was successful
     if success:
@@ -107,7 +112,8 @@ def run_update(args):
     install_success = install_dependencies(
         cuda_version,
         step_num=3,
-        force_cpu=args.force_cpu
+        force_cpu=args.force_cpu,
+        debug=args.debug
     )
     
     if not install_success:

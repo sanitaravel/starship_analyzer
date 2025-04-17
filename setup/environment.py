@@ -6,28 +6,37 @@ import time
 import subprocess
 from pathlib import Path
 
-from .utilities import print_step, print_success, print_warning, print_error
+from .utilities import print_step, print_success, print_info, print_warning, print_error
 
-def try_force_remove_venv(venv_dir):
+def try_force_remove_venv(venv_dir, debug=False):
     """
     Try alternative methods to forcibly remove the virtual environment.
     
     Args:
         venv_dir (str): Path to the virtual environment directory
+        debug (bool): Whether to show detailed output
     """
     try:
         if platform.system() == "Windows":
             # Use subprocess to run system commands to force directory removal
-            subprocess.run(["cmd", "/c", f"rmdir /s /q {venv_dir}"], 
+            if debug:
+                subprocess.run(["cmd", "/c", f"rmdir /s /q {venv_dir}"], check=False)
+            else:
+                subprocess.run(["cmd", "/c", f"rmdir /s /q {venv_dir}"], 
                            check=False, capture_output=True)
         else:
             # For Unix systems, use rm -rf
-            subprocess.run(["rm", "-rf", venv_dir], 
+            if debug:
+                subprocess.run(["rm", "-rf", venv_dir], check=False)
+            else:
+                subprocess.run(["rm", "-rf", venv_dir], 
                            check=False, capture_output=True)
     except Exception as e:
-        print_warning(f"Force removal method also failed: {e}")
+        print_warning(f"Force removal method also failed")
+        if debug:
+            print_warning(f"Error details: {e}")
 
-def create_virtual_environment(step_num=1, unattended=False, recreate=False, keep=False):
+def create_virtual_environment(step_num=1, unattended=False, recreate=False, keep=False, debug=False):
     """
     Create a Python virtual environment.
     
@@ -36,6 +45,7 @@ def create_virtual_environment(step_num=1, unattended=False, recreate=False, kee
         unattended (bool): Whether to run in unattended mode
         recreate (bool): Whether to recreate the virtual environment if it exists
         keep (bool): Whether to keep the virtual environment if it exists
+        debug (bool): Whether to show detailed output
     
     Returns:
         bool: True if virtual environment was created successfully, False otherwise.
@@ -89,9 +99,11 @@ def create_virtual_environment(step_num=1, unattended=False, recreate=False, kee
                                         shutil.rmtree(venv_dir)
                                         print_success("Successfully removed virtual environment on second attempt")
                                     except Exception as e2:
-                                        print_error(f"Failed again: {e2}")
+                                        print_error(f"Failed again")
+                                        if debug:
+                                            print_error(f"Error details: {e2}")
                                         print_warning("Let's try using a more aggressive approach...")
-                                        try_force_remove_venv(venv_dir)
+                                        try_force_remove_venv(venv_dir, debug=debug)
                                         if not os.path.exists(venv_dir):
                                             print_success("Successfully removed virtual environment using force method")
                                         else:
@@ -103,7 +115,7 @@ def create_virtual_environment(step_num=1, unattended=False, recreate=False, kee
                                     return True
                             else:
                                 print_warning("Unattended mode: Trying alternative removal method...")
-                                try_force_remove_venv(venv_dir)
+                                try_force_remove_venv(venv_dir, debug=debug)
                                 if not os.path.exists(venv_dir):
                                     print_success("Successfully removed virtual environment using force method")
                                 else:
@@ -120,7 +132,9 @@ def create_virtual_environment(step_num=1, unattended=False, recreate=False, kee
                     
                 print_success("Removed existing virtual environment")
             except Exception as e:
-                print_error(f"Failed to remove existing virtual environment: {e}")
+                print_error(f"Failed to remove existing virtual environment")
+                if debug:
+                    print_error(f"Error details: {e}")
                 if unattended and not recreate:
                     print_warning("Unattended mode: Continuing with existing virtual environment despite error")
                     return True
@@ -130,14 +144,23 @@ def create_virtual_environment(step_num=1, unattended=False, recreate=False, kee
             return True
     
     try:
-        subprocess.run([sys.executable, "-m", "venv", venv_dir], check=True)
+        print_info("Creating new virtual environment...")
+        if debug:
+            subprocess.run([sys.executable, "-m", "venv", venv_dir], check=True)
+        else:
+            subprocess.run([sys.executable, "-m", "venv", venv_dir], 
+                          check=True, capture_output=True, text=True)
         print_success(f"Created virtual environment in '{venv_dir}' directory")
         return True
     except subprocess.CalledProcessError as e:
-        print_error(f"Failed to create virtual environment: {e}")
+        print_error(f"Failed to create virtual environment")
+        if debug:
+            print_error(f"Error details: {e}")
         return False
     except Exception as e:
-        print_error(f"Unexpected error creating virtual environment: {e}")
+        print_error(f"Unexpected error creating virtual environment")
+        if debug:
+            print_error(f"Error details: {e}")
         return False
 
 def create_required_directories(step_num=2):
