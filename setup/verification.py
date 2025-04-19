@@ -46,7 +46,20 @@ def verify_installations(python_path, step_num=7, debug=False):
                                               capture_output=True, text=True, check=False)
                 version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown version"
                 
-                print_success(f"{description} - Installed ({version})")
+                # For PyTorch, check if it's CPU-only or CUDA version
+                if module_name == "torch":
+                    torch_info_cmd = "import torch; print(torch.__version__)"
+                    torch_info = subprocess.run([python_path, "-c", torch_info_cmd],
+                                            capture_output=True, text=True, check=False).stdout.strip()
+                    
+                    if "+cpu" in torch_info:
+                        print_warning(f"{description} - Installed ({torch_info}) - CPU-only version")
+                        print_debug(f"PyTorch is CPU-only despite possible CUDA installation", debug)
+                    else:
+                        print_success(f"{description} - Installed ({torch_info})")
+                else:
+                    print_success(f"{description} - Installed ({version})")
+                
                 print_debug(f"Full import details for {module_name}: Success with version {version}", debug)
             else:
                 print_error(f"{description} - Failed to import")
@@ -85,7 +98,13 @@ def verify_installations(python_path, step_num=7, debug=False):
                 print_success(f"PyTorch is using CUDA version: {cuda_ver}")
                 print_debug(f"Additional CUDA info - PyTorch built with: {cuda_ver}", debug)
         else:
-            print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")  # Changed from info to warning
+            # Additional check to understand why CUDA is not available
+            cuda_issue_cmd = "import torch; print('CUDA Available:', torch.cuda.is_available()); print('PyTorch Version:', torch.__version__); print('CUDA Version:', torch.version.cuda if hasattr(torch, 'version') and hasattr(torch.version, 'cuda') else 'Not available')"
+            issue_check = subprocess.run([python_path, "-c", cuda_issue_cmd], 
+                                      capture_output=True, text=True, check=False)
+            
+            print_warning("GPU Acceleration - Not available (EasyOCR will run in CPU mode)")
+            print_warning(f"PyTorch CUDA details: {issue_check.stdout.strip()}")
             print_debug("No GPU detected: torch.cuda.is_available() returned False", debug)
     except Exception as e:
         print_warning(f"GPU Acceleration - Could not verify: {e}")
