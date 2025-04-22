@@ -94,18 +94,12 @@ def process_random_frame():
     clear_screen()
     return True
 
-def process_complete_video():
-    """Handle the process complete video menu option."""
-    from main import DEBUG_MODE  # Import here to avoid circular imports
-    
-    clear_screen()
+def select_video_file():
+    """Select a video file from available flight recordings."""
     video_files = get_video_files_from_flight_recordings()
     if not video_files:
-        return True
+        return None
     
-    logger.debug("Starting complete video processing")
-    
-    # First, get the video path
     video_question = [
         inquirer.List(
             'video_path',
@@ -114,11 +108,10 @@ def process_complete_video():
         )
     ]
     video_answer = inquirer.prompt(video_question)
-    
-    # Display video information
-    display_video_info(video_answer['video_path'])
-    
-    # Continue with other questions
+    return video_answer['video_path']
+
+def get_processing_parameters():
+    """Get processing parameters from user."""
     questions = [
         inquirer.Text('launch_number', message="Launch number",
                     validate=validate_number),
@@ -136,62 +129,103 @@ def process_complete_video():
             default='Process entire video'
         )
     ]
-    answers = inquirer.prompt(questions)
-    answers['video_path'] = video_answer['video_path']  # Combine answers
+    return inquirer.prompt(questions)
+
+def get_time_based_borders():
+    """Get time-based processing borders from user."""
+    time_questions = [
+        inquirer.Text(
+            'start_time', 
+            message="Start time in seconds (default: 0)", 
+            validate=validate_number
+        ),
+        inquirer.Text(
+            'end_time', 
+            message="End time in seconds (default: process to end)", 
+            validate=validate_number
+        )
+    ]
+    time_answers = inquirer.prompt(time_questions)
+    
+    start_time = float(time_answers['start_time']) if time_answers['start_time'] else 0
+    end_time = float(time_answers['end_time']) if time_answers['end_time'] else None
+    
+    return start_time, end_time
+
+def get_frame_based_borders():
+    """Get frame-based processing borders from user."""
+    frame_questions = [
+        inquirer.Text(
+            'start_frame', 
+            message="Start frame number (default: 0)", 
+            validate=validate_number
+        ),
+        inquirer.Text(
+            'end_frame', 
+            message="End frame number (default: process to end)", 
+            validate=validate_number
+        )
+    ]
+    frame_answers = inquirer.prompt(frame_questions)
+    
+    start_frame = int(frame_answers['start_frame']) if frame_answers['start_frame'] else 0
+    end_frame = int(frame_answers['end_frame']) if frame_answers['end_frame'] else None
+    
+    return start_frame, end_frame
+
+def process_video_with_parameters(video_path, launch_number, batch_size, sample_rate, 
+                                 start_time=None, end_time=None, start_frame=None, end_frame=None):
+    """Process the video with the provided parameters."""
+    from main import DEBUG_MODE  # Import here to avoid circular imports
+    
+    logger.debug(f"Processing complete video {video_path} with launch_number={launch_number}, "
+                f"batch_size={batch_size}, sample_rate={sample_rate}")
+    logger.debug(f"Borders: start_time={start_time}, end_time={end_time}, "
+                f"start_frame={start_frame}, end_frame={end_frame}")
+    
+    iterate_through_frames(
+        video_path, int(launch_number), debug=DEBUG_MODE, 
+        batch_size=batch_size, sample_rate=sample_rate,
+        start_time=start_time, end_time=end_time, 
+        start_frame=start_frame, end_frame=end_frame)
+
+def process_complete_video():
+    """Handle the process complete video menu option."""
+    from main import DEBUG_MODE  # Import here to avoid circular imports
+    
+    clear_screen()
+    video_path = select_video_file()
+    if not video_path:
+        return True
+    
+    logger.debug("Starting complete video processing")
+    
+    # Display video information
+    display_video_info(video_path)
+    
+    # Get processing parameters
+    answers = get_processing_parameters()
     
     batch_size = int(answers['batch_size']) if answers['batch_size'] else 10
     sample_rate = int(answers['sample_rate']) if answers['sample_rate'] else 1
     
-    # Get border information based on user's choice
+    # Initialize borders
     start_time = None
     end_time = None
     start_frame = None
     end_frame = None
     
+    # Get border information based on user's choice
     if answers['border_type'] == 'Time-based (seconds)':
-        time_questions = [
-            inquirer.Text(
-                'start_time', 
-                message="Start time in seconds (default: 0)", 
-                validate=validate_number
-            ),
-            inquirer.Text(
-                'end_time', 
-                message="End time in seconds (default: process to end)", 
-                validate=validate_number
-            )
-        ]
-        time_answers = inquirer.prompt(time_questions)
-        
-        start_time = float(time_answers['start_time']) if time_answers['start_time'] else 0
-        end_time = float(time_answers['end_time']) if time_answers['end_time'] else None
-        
+        start_time, end_time = get_time_based_borders()
     elif answers['border_type'] == 'Frame-based':
-        frame_questions = [
-            inquirer.Text(
-                'start_frame', 
-                message="Start frame number (default: 0)", 
-                validate=validate_number
-            ),
-            inquirer.Text(
-                'end_frame', 
-                message="End frame number (default: process to end)", 
-                validate=validate_number
-            )
-        ]
-        frame_answers = inquirer.prompt(frame_questions)
-        
-        start_frame = int(frame_answers['start_frame']) if frame_answers['start_frame'] else 0
-        end_frame = int(frame_answers['end_frame']) if frame_answers['end_frame'] else None
+        start_frame, end_frame = get_frame_based_borders()
     
-    logger.debug(f"Processing complete video {answers['video_path']} with launch_number={answers['launch_number']}, "
-                f"batch_size={batch_size}, sample_rate={sample_rate}")
-    logger.debug(f"Borders: start_time={start_time}, end_time={end_time}, start_frame={start_frame}, end_frame={end_frame}")
+    process_video_with_parameters(
+        video_path, answers['launch_number'], batch_size, sample_rate,
+        start_time, end_time, start_frame, end_frame
+    )
     
-    iterate_through_frames(
-        answers['video_path'], int(answers['launch_number']), debug=DEBUG_MODE, 
-        batch_size=batch_size, sample_rate=sample_rate,
-        start_time=start_time, end_time=end_time, start_frame=start_frame, end_frame=end_frame)
     input("\nPress Enter to continue...")
     clear_screen()
     return True

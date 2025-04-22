@@ -85,18 +85,47 @@ def visualize_flight_data():
 def compare_multiple_launches_menu():
     """Handle the compare multiple launches menu option."""
     clear_screen()
+    launch_folders = get_launch_folders()
+    
+    if not validate_available_launches(launch_folders):
+        return True
+    
+    answers = prompt_for_comparison_options(launch_folders)
+    
+    if not validate_selected_launches(answers['launches']):
+        return True
+    
+    execute_launch_comparison(
+        answers['launches'], 
+        answers['start_time'], 
+        answers['end_time'], 
+        answers['show_figures']
+    )
+    
+    input("\nPress Enter to continue...")
+    clear_screen()
+    return True
+
+def get_launch_folders():
+    """Get available launch folders from results directory."""
     results_dir = os.path.join('.', 'results')
     launch_folders = [f for f in os.listdir(results_dir) if os.path.isdir(
         os.path.join(results_dir, f)) and f != 'compare_launches']
+    
+    logger.debug(f"Found {len(launch_folders)} launch folders for comparison")
+    return launch_folders
 
+def validate_available_launches(launch_folders):
+    """Validate that there are enough launch folders to compare."""
     if len(launch_folders) < 2:
         print("Need at least two launch folders in ./results directory to compare.")
         input("\nPress Enter to continue...")
         clear_screen()
-        return True
+        return False
+    return True
 
-    logger.debug(f"Found {len(launch_folders)} launch folders for comparison")
-    
+def prompt_for_comparison_options(launch_folders):
+    """Prompt user for comparison options."""
     questions = [
         inquirer.Checkbox(
             'launches',
@@ -110,23 +139,25 @@ def compare_multiple_launches_menu():
         inquirer.Confirm(
             'show_figures', message="Display figures interactively?", default=True)
     ]
-    answers = inquirer.prompt(questions)
+    return inquirer.prompt(questions)
 
-    if len(answers['launches']) < 2:
+def validate_selected_launches(selected_launches):
+    """Validate that user selected enough launches to compare."""
+    if len(selected_launches) < 2:
         print("Please select at least two launches to compare.")
         input("\nPress Enter to continue...")
         clear_screen()
-        return True
+        return False
+    return True
 
-    json_paths = [os.path.join(results_dir, folder, 'results.json')
-                  for folder in answers['launches']]
-    start_time = int(answers['start_time']) if answers['start_time'] else 0
-    end_time = int(answers['end_time']) if answers['end_time'] else -1
+def execute_launch_comparison(launches, start_time_input, end_time_input, show_figures):
+    """Execute the launch comparison with the provided parameters."""
+    results_dir = os.path.join('.', 'results')
+    json_paths = [os.path.join(results_dir, folder, 'results.json') for folder in launches]
+    start_time = int(start_time_input) if start_time_input else 0
+    end_time = int(end_time_input) if end_time_input else -1
     
-    logger.debug(f"Comparing launches: {', '.join(answers['launches'])}")
+    logger.debug(f"Comparing launches: {', '.join(launches)}")
     logger.debug(f"Time window: {start_time} to {end_time}")
     
-    compare_multiple_launches(start_time, end_time, *json_paths, show_figures=answers['show_figures'])
-    input("\nPress Enter to continue...")
-    clear_screen()
-    return True
+    compare_multiple_launches(start_time, end_time, *json_paths, show_figures=show_figures)
