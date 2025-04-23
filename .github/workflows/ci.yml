@@ -2,9 +2,9 @@ name: Starship Analyzer CI
 
 on:
   push:
-    branches: [development]
+    branches: [ development ]
   pull_request:
-    branches: [master, development]
+    branches: [ master, development ]
 
 jobs:
   test:
@@ -24,6 +24,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
+
+      # Set environment variable for Windows to avoid UnicodeEncodeError
+      - name: Set encoding for Windows
+        if: contains(matrix.os, 'windows')
+        run: |
+          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |

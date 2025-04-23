@@ -1,13 +1,10 @@
 # 🚀 Starship Analyzer
 
-<p align="center">
-<img src="https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge" alt="Starship Launch">
-<img src="https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python" alt="Python">
-<img src="https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge" alt="License">
-<img src="https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge" alt="OCR">
-<img src="https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv" alt="Computer Vision">
-<img src="https://img.shields.io/codecov/c/github/sanitaravel/starship_analyzer?style=for-the-badge&logo=codecov" alt="Code Coverage">
-</p>
+![Starship Launch](https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![License](https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge)
+![OCR](https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge)
+![Computer Vision](https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv)
 
 A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch webcasts using computer vision and optical character recognition. This tool helps engineers, space enthusiasts, and analysts track performance metrics and compare data across different Starship test flights.
 

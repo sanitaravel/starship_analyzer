@@ -1,0 +1,26 @@
+name: Prevent Direct Pushes to Master
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  prevent_direct_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if push was from a pull request
+        id: check_pr_merge
+        run: |
+          if [[ "${{ github.event.head_commit.message }}" == *"Merge pull request"* ]]; then
+            echo "This was a PR merge, allowing"
+            echo "pr_merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr_merge=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Fail if direct push to master
+        if: steps.check_pr_merge.outputs.pr_merge == 'false'
+        run: |
+          echo "ERROR: Direct pushes to master are not allowed!"
+          echo "Please create a pull request instead."
+          exit 1
