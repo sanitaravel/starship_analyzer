@@ -34,9 +34,15 @@ class TestGetVideoFiles:
         
         # Verify results
         assert len(result) == 3
-        assert ('video1.mp4', 'flight_recordings\\video1.mp4') in result
-        assert ('video2.avi', 'flight_recordings\\folder1\\video2.avi') in result
-        assert ('video3.mov', 'flight_recordings\\folder1\\video3.mov') in result
+        
+        # Use platform-appropriate path separators
+        expected_path1 = os.path.join('flight_recordings', 'video1.mp4')
+        expected_path2 = os.path.join('flight_recordings', 'folder1', 'video2.avi')
+        expected_path3 = os.path.join('flight_recordings', 'folder1', 'video3.mov')
+        
+        assert ('video1.mp4', expected_path1) in result
+        assert ('video2.avi', expected_path2) in result
+        assert ('video3.mov', expected_path3) in result
         
     @patch('os.path.exists')
     @patch('os.walk')
