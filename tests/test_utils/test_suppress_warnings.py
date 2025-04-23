@@ -5,7 +5,7 @@ import pytest
 import os
 import sys
 import ctypes
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 from utils.suppress_warnings import suppress_ffmpeg_warnings, suppress_stdout_stderr
 
 class TestSuppressFFmpegWarnings:
@@ -51,7 +51,16 @@ class TestSuppressStdoutStderr:
                     # Just verify it runs without errors
                     pass
         else:  # Unix/Linux
-            with patch('os.dup') as mock_dup, patch('os.dup2') as mock_dup2:
+            # Make sure ctypes.util.find_library is properly mocked
+            with patch('ctypes.util.find_library') as mock_find_library, \
+                 patch('ctypes.CDLL') as mock_cdll, \
+                 patch('os.dup') as mock_dup, \
+                 patch('os.dup2') as mock_dup2:
+                
+                # Set up the mocks
+                mock_find_library.return_value = 'libc.so'
+                mock_libc = MagicMock()
+                mock_cdll.return_value = mock_libc
                 mock_dup.return_value = 456  # Mock duplicated file descriptor
                 
                 # Use the context manager
@@ -59,9 +68,12 @@ class TestSuppressStdoutStderr:
                     # Just verify it runs without errors
                     pass
                 
-                # Verify dup was called (simplified verification)
-                assert mock_dup.call_count >= 1
-                assert mock_dup2.call_count >= 1
+                # Verify find_library was called with 'c'
+                mock_find_library.assert_called_once_with('c')
+                
+                # Verify dup was called twice (once for stdout, once for stderr)
+                assert mock_dup.call_count >= 1, "os.dup should be called at least once"
+                assert mock_dup2.call_count >= 1, "os.dup2 should be called at least once"
         
         # Verify the null device was opened
         mock_open.assert_called_with(os.devnull, os.O_WRONLY)

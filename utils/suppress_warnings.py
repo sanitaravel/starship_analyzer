@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import ctypes
+import ctypes.util  # Add this missing import
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
@@ -80,9 +81,9 @@ def suppress_stdout_stderr():
             os.dup2(null_fd, stderr_fd)
             
             yield
-        except (AttributeError, ValueError, OSError):
+        except (AttributeError, ValueError, OSError) as e:
             # Fall back to a no-op
-            logger.warning("Could not suppress stdout/stderr on this Unix/Linux system")
+            logger.warning(f"Could not suppress stdout/stderr on this Unix/Linux system: {e}")
             yield
         finally:
             # Only restore if we successfully saved the original descriptors
