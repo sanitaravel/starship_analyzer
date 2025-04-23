@@ -32,18 +32,6 @@ jobs:
         pip install -r requirements.txt
       if: hashFiles('requirements.txt') != ''
     
-    - name: Fix Windows version detection
-      run: |
-        echo "Patching Windows version detection code..."
-        find_cmd="if platform.system() == 'Windows' and int(platform.release()) < 10:"
-        replace_cmd="if platform.system() == 'Windows':\n            try:\n                if int(''.join(c for c in platform.release() if c.isdigit())) < 10:\n                    use_colors = False\n            except ValueError:\n                # Newer Windows versions (like Server 2022) will use colors\n                pass"
-        if [ "${{ runner.os }}" == "Windows" ]; then
-          powershell -Command "(Get-Content utils/logger/formatters.py) -replace [regex]::Escape(\"$find_cmd\"), \"$replace_cmd\" | Set-Content utils/logger/formatters.py"
-        else
-          sed -i "s|$find_cmd|$replace_cmd|g" utils/logger/formatters.py
-        fi
-      shell: bash
-    
     - name: Run tests with pytest
       run: |
         pytest --cov=. --cov-report=xml
@@ -54,3 +42,4 @@ jobs:
         file: ./coverage.xml
         fail_ci_if_error: false
         verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}

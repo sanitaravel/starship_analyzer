@@ -36,8 +36,16 @@ class ColoredFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None, style='%', use_colors=True):
         super().__init__(fmt, datefmt, style)
         # Disable colors on Windows versions that don't support ANSI
-        if platform.system() == 'Windows' and int(platform.release()) < 10:
-            use_colors = False
+        if platform.system() == 'Windows':
+            try:
+                # Extract only numeric characters from the version string
+                version_str = ''.join(c for c in platform.release() if c.isdigit())
+                if version_str and int(version_str) < 10:
+                    use_colors = False
+            except (ValueError, TypeError):
+                # If parsing fails (e.g., with "2022Server"), assume it's a newer Windows
+                # version that supports ANSI colors
+                pass
         self.use_colors = use_colors
     
     def format(self, record):
