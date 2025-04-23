@@ -26,10 +26,10 @@ jobs:
           cache: "pip"
 
       # Set environment variable for Windows to avoid UnicodeEncodeError
-      - name: Set encoding for Windows
-        if: contains(matrix.os, 'windows')
-        run: |
-          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
+      # - name: Set encoding for Windows
+      #   if: contains(matrix.os, 'windows')
+      #   run: |
+      #     echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
@@ -40,7 +40,7 @@ jobs:
 
       - name: Run tests with pytest
         run: |
-          pytest --cov --cov-report=xml
+          pytest --cov=. --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
