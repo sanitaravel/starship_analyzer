@@ -25,11 +25,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
-      # Set environment variable for Windows to avoid UnicodeEncodeError
-      # - name: Set encoding for Windows
-      #   if: contains(matrix.os, 'windows')
-      #   run: |
-      #     echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
+      # Set environment variables for Windows to avoid UnicodeEncodeError
+      - name: Set encoding for Windows
+        if: runner.os == 'Windows'
+        run: |
+          echo "PYTHONIOENCODING=utf-8" >> $env:GITHUB_ENV
+          echo "PYTHONUTF8=1" >> $env:GITHUB_ENV
+          chcp 65001
+
+      # Set encoding for Unix-based systems
+      - name: Set encoding for Unix
+        if: runner.os != 'Windows'
+        run: |
+          echo "PYTHONIOENCODING=utf-8" >> $GITHUB_ENV
+          echo "PYTHONUTF8=1" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
