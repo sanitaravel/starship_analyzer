@@ -1,12 +1,10 @@
 # 🚀 Starship Analyzer
 
-<p align="center">
-<img src="https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge" alt="Starship Launch">
-<img src="https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python" alt="Python">
-<img src="https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge" alt="License">
-<img src="https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge" alt="OCR">
-<img src="https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv" alt="Computer Vision">
-</p>
+![Starship Launch](https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![License](https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge)
+![OCR](https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge)
+![Computer Vision](https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv)
 
 A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch webcasts using computer vision and optical character recognition. This tool helps engineers, space enthusiasts, and analysts track performance metrics and compare data across different Starship test flights.
 
@@ -33,6 +31,7 @@ A powerful Python toolkit for extracting, analyzing, and visualizing telemetry d
   - [📊 Example Outputs](#-example-outputs)
   - [🚀 Performance Tips](#-performance-tips)
   - [👥 Contributing](#-contributing)
+  - [🧪 Code Quality](#-code-quality)
   - [📄 License](#-license)
   - [📚 Citation](#-citation)
   - [📧 Contact](#-contact)
@@ -326,6 +325,29 @@ Contributions are welcome! To contribute:
 5. Open a Pull Request
 
 Please ensure your code follows the project's style guidelines and includes appropriate tests.
+
+## 🧪 Code Quality
+
+Starship Analyzer maintains high code quality standards through:
+
+- **Automated Testing**: Comprehensive test suite covering core functionality
+- **Continuous Integration**: GitHub Actions workflows run tests on multiple platforms
+- **Code Coverage**: Codecov tracks test coverage to identify untested code
+- **Static Analysis**: Linting tools ensure consistent code style
+
+[![Codecov Coverage](https://codecov.io/gh/sanitaravel/starship_analyzer/branch/master/graph/badge.svg)](https://codecov.io/gh/sanitaravel/starship_analyzer)
+
+View detailed coverage reports on our [Codecov dashboard](https://codecov.io/gh/sanitaravel/starship_analyzer).
+
+Running tests locally:
+
+```bash
+# Run tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=. --cov-report=html
+```
 
 ## 📄 License
 

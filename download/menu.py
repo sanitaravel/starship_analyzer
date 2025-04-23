@@ -6,60 +6,79 @@ from download.utils import get_downloaded_launches, get_launch_data
 from utils.logger import get_logger
 from .downloader import download_twitter_broadcast, download_youtube_video
 from utils.terminal import clear_screen
+from utils.validators import validate_number, validate_url
 
 logger = get_logger(__name__)
 
 def download_media_menu():
     """Combined menu for downloading media from different sources."""
-    
     clear_screen()
     logger.debug("Starting media download menu")
     
-    # Menu options
     menu_options = [
         'Download from launch list',
         'Download from custom URL',
         'Back to main menu'
     ]
     
-    # Show media download menu
-    menu_question = [
-        inquirer.List(
-            'option',
-            message="Select download option:",
-            choices=menu_options,
-        ),
-    ]
+    menu_answer = prompt_menu_options("Select download option:", menu_options)
     
-    menu_answer = inquirer.prompt(menu_question)
-    
-    if menu_answer['option'] == 'Back to main menu':
+    if menu_answer == 'Back to main menu':
         clear_screen()
         return True
     
-    if menu_answer['option'] == 'Download from launch list':
+    if menu_answer == 'Download from launch list':
         return download_from_launch_list()
     else:  # Download from custom URL
         return download_from_custom_url()
 
+def prompt_menu_options(message, options):
+    """Show a menu with the given options and return the selected option."""
+    menu_question = [
+        inquirer.List(
+            'option',
+            message=message,
+            choices=options,
+        ),
+    ]
+    
+    menu_answer = inquirer.prompt(menu_question)
+    return menu_answer['option']
+
 def download_from_launch_list():
     """Download video from the GitHub flight list."""
-    
     clear_screen()
     logger.debug("Downloading from flight list")
     
-    # Get flight data from GitHub
-    flight_data = get_launch_data()
+    flight_data = get_flight_data()
     if not flight_data:
-        print("Could not retrieve flight data. Please try again later.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        return True
+        return handle_error("Could not retrieve flight data. Please try again later.")
     
-    # Get list of already downloaded flights
+    available_flights = get_available_flights(flight_data)
+    
+    if not available_flights:
+        return handle_error("All flights have already been downloaded or no flights are available.")
+    
+    choices = available_flights + [("Back to download menu", -1)]
+    
+    selected_flight_num = display_flight_selection_menu(choices)
+    
+    if selected_flight_num == -1:  # Back option
+        clear_screen()
+        return download_media_menu()
+    
+    download_status = download_selected_flight(flight_data, selected_flight_num)
+    
+    return prompt_continue_after_download(download_status, selected_flight_num)
+
+def get_flight_data():
+    """Retrieve flight data from repository."""
+    return get_launch_data()
+
+def get_available_flights(flight_data):
+    """Create a list of flights that haven't been downloaded yet."""
     downloaded_flights = get_downloaded_launches()
     
-    # Create a list of available flights (not downloaded yet)
     available_flights = []
     for key, value in flight_data.items():
         try:
@@ -73,17 +92,10 @@ def download_from_launch_list():
     
     # Sort by flight number
     available_flights.sort(key=lambda x: x[1])
-    
-    if not available_flights:
-        print("All flights have already been downloaded or no flights are available.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        return True
-    
-    # Add a "Back" option
-    choices = available_flights + [("Back to download menu", -1)]
-    
-    # Prompt user to select a flight
+    return available_flights
+
+def display_flight_selection_menu(choices):
+    """Display menu for flight selection and return selected flight number."""
     flight_question = [
         inquirer.List(
             'selected_flight',
@@ -93,36 +105,36 @@ def download_from_launch_list():
     ]
     
     flight_answer = inquirer.prompt(flight_question)
-    selected_flight_num = flight_answer['selected_flight']
-    
-    if selected_flight_num == -1:  # Back option
-        clear_screen()
-        return download_media_menu()
-    
-    # Get the flight info
+    return flight_answer['selected_flight']
+
+def download_selected_flight(flight_data, selected_flight_num):
+    """Download the selected flight."""
     flight_key = f"flight_{selected_flight_num}"
     flight_info = flight_data.get(flight_key)
     
     if not flight_info:
         print(f"Flight information for {flight_key} not found.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        return True
+        return False
     
     url = flight_info['url']
     flight_type = flight_info['type']
     
-    success = False
     print(f"Downloading {flight_key} from {url}...")
-    if flight_type == "youtube":
-        success = download_youtube_video(url, selected_flight_num)
-    elif flight_type in ["twitter/x", "twitter", "x"]:
-        success = download_twitter_broadcast(url, selected_flight_num)
-    
+    return execute_download(flight_type, url, selected_flight_num)
+
+def handle_error(message):
+    """Display error message and prompt to continue."""
+    print(message)
+    input("\nPress Enter to continue...")
+    clear_screen()
+    return True
+
+def prompt_continue_after_download(success, flight_num):
+    """Show download status message and prompt to continue."""
     if success:
-        print(f"Download of {flight_key} completed successfully.")
+        print(f"Download of flight_{flight_num} completed successfully.")
     else:
-        print(f"Failed to download {flight_key}.")
+        print(f"Failed to download flight_{flight_num}.")
     
     input("\nPress Enter to continue...")
     clear_screen()
@@ -130,56 +142,21 @@ def download_from_launch_list():
 
 def download_from_custom_url():
     """Download media from a custom URL."""
-    from main import clear_screen, validate_number  # Local import to avoid circular dependencies
-    
     clear_screen()
     logger.debug("Downloading from custom URL")
     
-    # First, select the platform
-    platform_question = [
-        inquirer.List(
-            'platform',
-            message="Select platform to download from",
-            choices=[
-                'Twitter/X Broadcast',
-                'YouTube Video',
-                'Back to download menu'
-            ],
-        ),
-    ]
+    platform = select_platform()
     
-    platform_answer = inquirer.prompt(platform_question)
-    
-    if platform_answer['platform'] == 'Back to download menu':
+    if platform == 'Back to download menu':
         clear_screen()
         return download_media_menu()
     
-    # Now prompt for URL and flight number
-    questions = [
-        inquirer.Text('url', message=f"Enter the {platform_answer['platform']} URL"),
-        inquirer.Text('flight_number', message="Enter the flight number", 
-                     validate=lambda _, current: validate_number(_, current))
-    ]
+    url, flight_number = get_url_and_flight_number(platform)
     
-    answers = inquirer.prompt(questions)
+    if not url:
+        return handle_error("Download cancelled.")
     
-    if not answers or not answers['url'].strip():
-        print("Download cancelled.")
-        input("\nPress Enter to continue...")
-        clear_screen()
-        return True
-    
-    success = False
-    if platform_answer['platform'] == 'Twitter/X Broadcast':
-        success = download_twitter_broadcast(
-            answers['url'].strip(), 
-            int(answers['flight_number'])
-        )
-    elif platform_answer['platform'] == 'YouTube Video':
-        success = download_youtube_video(
-            answers['url'].strip(), 
-            int(answers['flight_number'])
-        )
+    success = download_from_platform(platform, url, flight_number)
     
     if success:
         print("Download completed successfully.")
@@ -187,3 +164,45 @@ def download_from_custom_url():
     input("\nPress Enter to continue...")
     clear_screen()
     return True
+
+def select_platform():
+    """Show menu to select download platform."""
+    platform_choices = [
+        'Twitter/X Broadcast',
+        'YouTube Video',
+        'Back to download menu'
+    ]
+    
+    return prompt_menu_options("Select platform to download from", platform_choices)
+
+def get_url_and_flight_number(platform):
+    """Prompt for URL and flight number."""
+    questions = [
+        inquirer.Text('url', message=f"Enter the {platform} URL", 
+                     validate=validate_url),
+        inquirer.Text('flight_number', message="Enter the flight number", 
+                     validate=validate_number)
+    ]
+    
+    answers = inquirer.prompt(questions)
+    
+    if not answers or not answers['url'].strip():
+        return None, None
+    
+    return answers['url'].strip(), int(answers['flight_number'])
+
+def download_from_platform(platform, url, flight_number):
+    """Execute download based on selected platform."""
+    if platform == 'Twitter/X Broadcast':
+        return download_twitter_broadcast(url, flight_number)
+    elif platform == 'YouTube Video':
+        return download_youtube_video(url, flight_number)
+    return False
+
+def execute_download(media_type, url, flight_num):
+    """Execute download based on media type."""
+    if media_type == "youtube":
+        return download_youtube_video(url, flight_num)
+    elif media_type in ["twitter/x", "twitter", "x"]:
+        return download_twitter_broadcast(url, flight_num)
+    return False

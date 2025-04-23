@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict
+from typing import Dict, List, Union
 from numba import njit
 from utils.constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
 from utils.logger import get_logger
@@ -8,9 +8,17 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 @njit
-def check_engines_numba(image: np.ndarray, coordinates: list, white_threshold: int) -> list:
+def check_engines_numba(image: np.ndarray, coordinates: np.ndarray, white_threshold: int) -> list:
     """
     Optimized engine status check using numba.
+    
+    Args:
+        image: The image to process
+        coordinates: NumPy array of (x, y) coordinate tuples
+        white_threshold: Brightness threshold for determining engine status
+        
+    Returns:
+        List of boolean values indicating engine status
     """
     status = []
     for x, y in coordinates:
@@ -48,6 +56,10 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     
     # Check engines
     for section, coordinates in engine_coords.items():
+        # Convert list to numpy array if needed to avoid numba warnings
+        if not isinstance(coordinates, np.ndarray):
+            coordinates = np.array(coordinates)
+            
         engine_status[section] = check_engines_numba(image, coordinates, WHITE_THRESHOLD)
         if debug:
             active_count = sum(engine_status[section])
