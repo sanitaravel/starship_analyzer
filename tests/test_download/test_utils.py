@@ -8,8 +8,8 @@ import requests
 
 from download.utils import get_launch_data, get_downloaded_launches, FLIGHTS_URL
 
-class TestDownloadUtils:
-    """Test suite for download utility functions."""
+class TestGetLaunchData:
+    """Test suite for get_launch_data function."""
     
     @patch('download.utils.requests.get')
     def test_get_launch_data_success(self, mock_get):
@@ -74,6 +74,10 @@ class TestDownloadUtils:
             # Assert results
             assert result is None
             mock_print.assert_called_with("Error parsing flight data: Invalid JSON: line 1 column 1 (char 0)")
+
+
+class TestGetDownloadedLaunches:
+    """Test suite for get_downloaded_launches function."""
     
     @patch('os.path.exists')
     def test_get_downloaded_launches_path_not_exists(self, mock_exists):

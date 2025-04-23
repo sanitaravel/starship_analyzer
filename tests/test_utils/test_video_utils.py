@@ -15,8 +15,8 @@ from utils.video_utils import (
     try_alternative_decoder
 )
 
-class TestVideoUtils:
-    """Test suite for video utilities."""
+class TestGetVideoFiles:
+    """Test suite for get_video_files_from_flight_recordings function."""
     
     @patch('os.path.exists')
     @patch('os.walk')
@@ -55,6 +55,10 @@ class TestVideoUtils:
             # Verify results
             assert len(result) == 0
             mock_print.assert_called_with("No video files found in flight_recordings folder.")
+
+
+class TestDisplayVideoInfo:
+    """Test suite for display_video_info function."""
     
     @patch('builtins.print')
     @patch('cv2.VideoCapture')
@@ -101,6 +105,10 @@ class TestVideoUtils:
             
             # Verify error message is printed
             mock_print.assert_called_with("Error: Could not open video file invalid_video.mp4")
+
+
+class TestGetVideoInfo:
+    """Test suite for get_video_info function."""
     
     @patch('os.path.exists')
     @patch('os.path.getsize')
@@ -156,7 +164,11 @@ class TestVideoUtils:
         assert result["duration"] == 300.0
         assert result["codec"] == "H264"
         assert "ffprobe" in result
-        
+
+
+class TestTryAlternativeDecoder:
+    """Test suite for try_alternative_decoder function."""
+    
     @patch('cv2.VideoCapture')
     def test_try_alternative_decoder_success(self, mock_video_capture):
         """Test alternative decoder with successful frame read."""

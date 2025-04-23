@@ -6,7 +6,7 @@ from download.utils import get_downloaded_launches, get_launch_data
 from utils.logger import get_logger
 from .downloader import download_twitter_broadcast, download_youtube_video
 from utils.terminal import clear_screen
-from utils.validators import validate_number
+from utils.validators import validate_number, validate_url
 
 logger = get_logger(__name__)
 
@@ -178,7 +178,8 @@ def select_platform():
 def get_url_and_flight_number(platform):
     """Prompt for URL and flight number."""
     questions = [
-        inquirer.Text('url', message=f"Enter the {platform} URL"),
+        inquirer.Text('url', message=f"Enter the {platform} URL", 
+                     validate=validate_url),
         inquirer.Text('flight_number', message="Enter the flight number", 
                      validate=validate_number)
     ]

@@ -7,8 +7,8 @@ from utils.ui_helpers import separator
 class TestUIHelpers:
     """Test suite for UI helper functions."""
     
-    def test_separator(self):
-        """Test that separator function returns correct dictionary format."""
+    def test_separator_with_simple_string(self):
+        """Test that separator function returns correct dictionary format with a simple string."""
         # Test with a simple string
         result = separator("Test Separator")
         
@@ -19,11 +19,15 @@ class TestUIHelpers:
         assert result["name"] == "Test Separator"
         assert result["disabled"] == "──────────────"
         
+    def test_separator_with_empty_string(self):
+        """Test that separator function handles empty strings correctly."""
         # Test with an empty string
         empty_result = separator("")
         assert empty_result["name"] == ""
         assert empty_result["disabled"] == "──────────────"
         
+    def test_separator_with_special_characters(self):
+        """Test that separator function handles special characters correctly."""
         # Test with special characters
         special_result = separator("👋 Hello 🌎 World!")
         assert special_result["name"] == "👋 Hello 🌎 World!"

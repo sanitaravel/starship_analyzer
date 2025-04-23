@@ -26,9 +26,10 @@ from utils.logger import (
 # Import the module for direct access
 import utils.logger.system_info
 
-class TestLogger:
-    """Test suite for logger package utilities."""
-    
+
+class TestLoggerConstants:
+    """Test suite for logger constants."""
+
     def test_logger_constants(self):
         """Test that logger constants are properly defined."""
         # Test LOG_LEVELS dictionary has expected keys
@@ -37,47 +38,55 @@ class TestLogger:
         assert 'WARNING' in LOG_LEVELS
         assert 'ERROR' in LOG_LEVELS
         assert 'CRITICAL' in LOG_LEVELS
-        
+
         # Test default log level is a valid logging level
-        assert DEFAULT_LOG_LEVEL in [logging.DEBUG, logging.INFO, logging.WARNING, 
-                                    logging.ERROR, logging.CRITICAL]
-        
+        assert DEFAULT_LOG_LEVEL in [logging.DEBUG, logging.INFO, logging.WARNING,
+                                     logging.ERROR, logging.CRITICAL]
+
         # Test format strings are not empty
         assert LOG_FORMAT
         assert DATE_FORMAT
-        
+
         # Test log paths
         assert LOG_DIR
         assert LOG_FILE
-    
+
+
+class TestLoggerCore:
+    """Test suite for core logger functionality."""
+
     @patch('logging.getLogger')
     def test_get_logger(self, mock_get_logger):
         """Test get_logger returns the correct logger instance."""
         # Setup mock
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
-        
+
         # Call the function
         logger = get_logger("test_module")
-        
+
         # Verify correct logger was retrieved
         mock_get_logger.assert_called_once_with("test_module")
         assert logger == mock_logger
-    
+
     @patch('logging.getLogger')
     def test_set_global_log_level(self, mock_get_logger):
         """Test setting global log level."""
         # Setup test
         mock_root_logger = MagicMock()
         mock_get_logger.return_value = mock_root_logger
-        
+
         # Call the function
         set_global_log_level(logging.WARNING)
-        
+
         # Verify root logger level was set
         mock_get_logger.assert_called_once_with()
         mock_root_logger.setLevel.assert_called_once_with(logging.WARNING)
-    
+
+
+class TestLoggerSession:
+    """Test suite for logger session management."""
+
     @patch('utils.logger.core.get_logger')
     @patch('os.makedirs')
     def test_start_new_session(self, mock_makedirs, mock_get_logger):
@@ -85,7 +94,7 @@ class TestLogger:
         # Setup mocks
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
-        
+
         # Patch os.path.exists to return False specifically for the log directory check
         with patch('os.path.exists', return_value=False) as mock_exists:
             # Patch open to prevent actual file operations
@@ -95,14 +104,18 @@ class TestLogger:
                     # Patch CURRENT_SESSION_LOG_FILE verification
                     with patch('os.path.join', return_value='/mock/path/to/log.log'):
                         start_new_session()
-        
+
         # Verify directory creation was performed
         mock_makedirs.assert_called_once()
-        
+
         # Verify logger was obtained and info was logged
         mock_get_logger.assert_called_with("starship_analyzer")
         assert mock_logger.info.call_count >= 1
-    
+
+
+class TestSystemInfo:
+    """Test suite for system information collection and logging."""
+
     def test_collect_system_info(self):
         """Test system info collection by mocking the entire function."""
         # Define a mock system info return value
@@ -140,22 +153,22 @@ class TestLogger:
                 }
             ]
         }
-        
+
         # Create a genuine mock that we can use to replace the function
         original_collect_system_info = utils.logger.system_info.collect_system_info
-        
+
         try:
             # Replace the function with a mock
             mock_collect = MagicMock(return_value=mock_system_info)
             utils.logger.system_info.collect_system_info = mock_collect
-            
+
             # Call function through the module
             result = utils.logger.system_info.collect_system_info()
-            
+
             # Verify mock was called and returned our mock data
             mock_collect.assert_called_once()
             assert result == mock_system_info
-            
+
             # Verify specific expected values
             assert result["system"] == "Test OS"
             assert result["platform"] == "Test Platform"
@@ -166,7 +179,7 @@ class TestLogger:
         finally:
             # Restore the original function
             utils.logger.system_info.collect_system_info = original_collect_system_info
-    
+
     def test_log_system_info(self):
         """Test system info logging without actually collecting system info."""
         # Create mock return data
@@ -178,45 +191,49 @@ class TestLogger:
             "cuda_available": True,
             "cuda_version": "11.3"
         }
-        
+
         # Create a mock logger
         mock_logger = MagicMock()
         mock_handler = MagicMock(spec=logging.FileHandler)
         mock_handler.baseFilename = "/tmp/test.log"
         mock_logger.handlers = [mock_handler]
-        
+
         # Use monkeypatching instead of patch
         original_collect_system_info = utils.logger.system_info.collect_system_info
         original_write_system_info_section = utils.logger.system_info.write_system_info_section
-        
+
         try:
             # Replace the functions with mocks
             mock_collect = MagicMock(return_value=mock_system_info)
             mock_write = MagicMock()
             utils.logger.system_info.collect_system_info = mock_collect
             utils.logger.system_info.write_system_info_section = mock_write
-            
+
             # Call the function directly
             log_system_info(mock_logger)
-            
+
             # Verify collect_system_info was actually called
             mock_collect.assert_called_once()
-            
+
             # Verify write_system_info_section was called
             mock_write.assert_called_once()
         finally:
             # Restore the original functions
             utils.logger.system_info.collect_system_info = original_collect_system_info
             utils.logger.system_info.write_system_info_section = original_write_system_info_section
-    
+
+
+class TestColoredFormatter:
+    """Test suite for colored log formatter."""
+
     def test_colored_formatter(self):
         """Test ColoredFormatter formats log messages correctly."""
         # Create a formatter
         formatter = ColoredFormatter(fmt="%(levelname)s - %(message)s")
-        
+
         # Create a sample record
         record = logging.LogRecord(
-            name="test_logger", 
+            name="test_logger",
             level=logging.INFO,
             pathname="test_path",
             lineno=42,
@@ -224,10 +241,10 @@ class TestLogger:
             args=(),
             exc_info=None
         )
-        
+
         # Format the record
         formatted = formatter.format(record)
-        
+
         # Verify format is as expected
         assert "INFO" in formatted
         assert "Test message" in formatted

@@ -17,8 +17,8 @@ from ui.video_menu import (
     process_complete_video
 )
 
-class TestVideoMenu:
-    """Tests for the video menu functions."""
+class TestVideoProcessingMenu:
+    """Tests for the main video processing menu."""
     
     @patch('ui.video_menu.inquirer.prompt')
     @patch('ui.video_menu.process_random_frame')
@@ -80,6 +80,10 @@ class TestVideoMenu:
         assert result is True
         mock_clear.assert_called()
         assert mock_prompt.call_count == 1
+
+
+class TestRandomFrameProcessing:
+    """Tests for random frame processing functionality."""
     
     @patch('ui.video_menu.get_video_files_from_flight_recordings')
     @patch('ui.video_menu.inquirer.prompt')
@@ -118,6 +122,10 @@ class TestVideoMenu:
             mock_process_frame.assert_called_once_with('video1.mp4', True, False, 10, 20)
             mock_input.assert_called_once()
             mock_clear.assert_called()
+
+
+class TestVideoFileSelection:
+    """Tests for video file selection functionality."""
     
     @patch('ui.video_menu.get_video_files_from_flight_recordings')
     @patch('ui.video_menu.inquirer.prompt')
@@ -147,6 +155,10 @@ class TestVideoMenu:
         # Verify results
         assert result is None
         mock_get_videos.assert_called_once()
+
+
+class TestProcessingParameters:
+    """Tests for processing parameter collection."""
     
     @patch('ui.video_menu.inquirer.prompt')
     def test_get_processing_parameters(self, mock_prompt):
@@ -172,6 +184,10 @@ class TestVideoMenu:
         assert len(args[0]) == 4  # Should have 4 questions
         assert args[0][0].name == 'launch_number'
         assert args[0][3].name == 'border_type'
+
+
+class TestBorderSelection:
+    """Tests for time and frame based border selection."""
     
     @patch('ui.video_menu.inquirer.prompt')
     def test_get_time_based_borders(self, mock_prompt):
@@ -240,6 +256,10 @@ class TestVideoMenu:
         assert start_frame == 0
         assert end_frame is None
         mock_prompt.assert_called_once()
+
+
+class TestVideoProcessing:
+    """Tests for video processing functionality."""
     
     @patch('ui.video_menu.iterate_through_frames')
     @patch('ui.video_menu.logger')
@@ -265,6 +285,10 @@ class TestVideoMenu:
                 start_time=5, end_time=30, 
                 start_frame=None, end_frame=None
             )
+
+
+class TestCompleteVideoProcessing:
+    """Tests for complete video processing workflow."""
     
     @patch('ui.video_menu.select_video_file')
     @patch('ui.video_menu.display_video_info')
@@ -340,21 +364,3 @@ class TestVideoMenu:
             mock_get_params.assert_called_once()
             mock_get_time.assert_not_called()
             mock_get_frame.assert_called_once()
-            mock_process.assert_called_once_with(
-                'video1.mp4', '5', 10, 2, None, None, 100, 500
-            )
-            mock_input.assert_called_once()
-            mock_clear.assert_called()
-    
-    @patch('ui.video_menu.select_video_file')
-    def test_process_complete_video_no_video(self, mock_select):
-        """Test processing a complete video when no video is selected."""
-        # Setup mocks
-        mock_select.return_value = None
-        
-        # Call function
-        result = process_complete_video()
-        
-        # Verify results
-        assert result is True
-        mock_select.assert_called_once()

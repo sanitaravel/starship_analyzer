@@ -8,8 +8,8 @@ import ctypes
 from unittest.mock import patch, MagicMock
 from utils.suppress_warnings import suppress_ffmpeg_warnings, suppress_stdout_stderr
 
-class TestSuppressWarnings:
-    """Test suite for warning suppression utilities."""
+class TestSuppressFFmpegWarnings:
+    """Test suite for FFmpeg warning suppression utilities."""
     
     @patch('utils.suppress_warnings.logger')  # Patch the logger directly in the module
     @patch.dict('os.environ', {}, clear=True)
@@ -26,6 +26,10 @@ class TestSuppressWarnings:
         assert mock_logger.info.call_count == 2
         mock_logger.info.assert_any_call("FFmpeg warnings suppression enabled. This may not completely eliminate all warnings.")
         mock_logger.info.assert_any_call("Common H.264 warnings like 'co located POCs unavailable' are harmless and won't affect functionality.")
+
+
+class TestSuppressStdoutStderr:
+    """Test suite for stdout/stderr suppression utilities."""
     
     @patch('utils.suppress_warnings.ctypes.c_void_p')
     @patch('os.open')

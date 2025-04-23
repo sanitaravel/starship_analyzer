@@ -142,6 +142,13 @@ dmypy.json
 *.webm
 *.zip
 
+# Exception for test images - allow images in test directories
+!**/tests/**/*.jpg
+!**/tests/**/*.jpeg
+!**/tests/**/*.png
+!**/tests/**/*.bmp
+!**/tests/**/*.gif
+
 # Folders to ignore
 /results
 /flight_recordings

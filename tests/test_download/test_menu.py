@@ -22,8 +22,8 @@ from download.menu import (
     execute_download
 )
 
-class TestDownloadMenu:
-    """Tests for the download menu functions."""
+class TestMainDownloadMenu:
+    """Tests for the main download menu functionality."""
     
     @patch('download.menu.clear_screen')
     @patch('download.menu.prompt_menu_options')
@@ -87,6 +87,110 @@ class TestDownloadMenu:
         assert mock_clear.call_count == 2
         mock_prompt.assert_called_once()
     
+    @patch('download.menu.clear_screen')
+    @patch('download.menu.get_flight_data')
+    def test_download_from_launch_list_no_data(self, mock_get_data, mock_clear):
+        """Test downloading from launch list when no flight data is available."""
+        # Setup mock
+        mock_get_data.return_value = None
+        
+        # Call function with mocked handle_error
+        with patch('download.menu.handle_error') as mock_handle_error:
+            mock_handle_error.return_value = True
+            
+            # Call function
+            result = download_from_launch_list()
+            
+            # Verify results
+            assert result is True
+            mock_clear.assert_called_once()
+            mock_get_data.assert_called_once()
+            mock_handle_error.assert_called_once_with(
+                "Could not retrieve flight data. Please try again later."
+            )
+    
+    @patch('download.menu.clear_screen')
+    @patch('download.menu.get_flight_data')
+    @patch('download.menu.get_available_flights')
+    def test_download_from_launch_list_no_flights(self, mock_get_flights, mock_get_data, mock_clear):
+        """Test downloading from launch list when no flights are available."""
+        # Setup mocks
+        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
+        mock_get_flights.return_value = []  # No available flights
+        
+        # Call function with mocked handle_error
+        with patch('download.menu.handle_error') as mock_handle_error:
+            mock_handle_error.return_value = True
+            
+            # Call function
+            result = download_from_launch_list()
+            
+            # Verify results
+            assert result is True
+            mock_clear.assert_called_once()
+            mock_get_data.assert_called_once()
+            mock_get_flights.assert_called_once_with({"flight_1": {"url": "url1", "type": "youtube"}})
+            mock_handle_error.assert_called_once_with(
+                "All flights have already been downloaded or no flights are available."
+            )
+    
+    @patch('download.menu.clear_screen')
+    @patch('download.menu.get_flight_data')
+    @patch('download.menu.get_available_flights')
+    @patch('download.menu.display_flight_selection_menu')
+    @patch('download.menu.download_media_menu')
+    def test_download_from_launch_list_back_option(self, mock_menu, mock_display, 
+                                                mock_get_flights, mock_get_data, mock_clear):
+        """Test downloading from launch list when selecting to go back."""
+        # Setup mocks
+        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
+        mock_get_flights.return_value = [("Flight 1 (YouTube)", 1)]
+        mock_display.return_value = -1  # Back option
+        mock_menu.return_value = True
+        
+        # Call function
+        result = download_from_launch_list()
+        
+        # Verify results
+        assert result is True
+        mock_clear.assert_called()
+        mock_get_data.assert_called_once()
+        mock_get_flights.assert_called_once()
+        mock_display.assert_called_once_with([("Flight 1 (YouTube)", 1), ("Back to download menu", -1)])
+        mock_menu.assert_called_once()
+    
+    @patch('download.menu.clear_screen')
+    @patch('download.menu.get_flight_data')
+    @patch('download.menu.get_available_flights')
+    @patch('download.menu.display_flight_selection_menu')
+    @patch('download.menu.download_selected_flight')
+    @patch('download.menu.prompt_continue_after_download')
+    def test_download_from_launch_list_success(self, mock_prompt, mock_download, mock_display,
+                                             mock_get_flights, mock_get_data, mock_clear):
+        """Test successful download from launch list."""
+        # Setup mocks
+        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
+        mock_get_flights.return_value = [("Flight 1 (YouTube)", 1)]
+        mock_display.return_value = 1  # Selected Flight 1
+        mock_download.return_value = True
+        mock_prompt.return_value = True
+        
+        # Call function
+        result = download_from_launch_list()
+        
+        # Verify results
+        assert result is True
+        mock_clear.assert_called_once()
+        mock_get_data.assert_called_once()
+        mock_get_flights.assert_called_once()
+        mock_display.assert_called_once_with([("Flight 1 (YouTube)", 1), ("Back to download menu", -1)])
+        mock_download.assert_called_once_with({"flight_1": {"url": "url1", "type": "youtube"}}, 1)
+        mock_prompt.assert_called_once_with(True, 1)
+
+
+class TestMenuUtilities:
+    """Tests for menu utility functions."""
+    
     @patch('download.menu.inquirer.prompt')
     def test_prompt_menu_options(self, mock_prompt):
         """Test prompting for menu options."""
@@ -106,7 +210,39 @@ class TestDownloadMenu:
         assert args[0][0].message == "Select an option:"
         assert args[0][0].choices == ['Option 1', 'Option 2']
     
-    @patch('download.menu.get_launch_data')  # Patch the dependency, not the function itself
+    @patch('download.menu.input')
+    @patch('download.menu.clear_screen')
+    def test_prompt_continue_after_download_success(self, mock_clear, mock_input):
+        """Test prompting for continuation after successful download."""
+        # Call function
+        with patch('builtins.print') as mock_print:
+            result = prompt_continue_after_download(True, 5)
+            
+            # Verify results
+            assert result is True
+            mock_print.assert_called_with("Download of flight_5 completed successfully.")
+            mock_input.assert_called_once_with("\nPress Enter to continue...")
+            mock_clear.assert_called_once()
+    
+    @patch('download.menu.input')
+    @patch('download.menu.clear_screen')
+    def test_prompt_continue_after_download_failure(self, mock_clear, mock_input):
+        """Test prompting for continuation after failed download."""
+        # Call function
+        with patch('builtins.print') as mock_print:
+            result = prompt_continue_after_download(False, 5)
+            
+            # Verify results
+            assert result is True
+            mock_print.assert_called_with("Failed to download flight_5.")
+            mock_input.assert_called_once_with("\nPress Enter to continue...")
+            mock_clear.assert_called_once()
+
+
+class TestFlightData:
+    """Tests for flight data management functions."""
+    
+    @patch('download.menu.get_launch_data')
     def test_get_flight_data(self, mock_get_launch_data):
         """Test getting flight data passes through to utils."""
         # Setup mock
@@ -163,6 +299,10 @@ class TestDownloadMenu:
         assert ("Flight 1 (YouTube)", 1) in result
         mock_get_downloaded.assert_called_once()
         assert mock_logger.warning.call_count == 3  # Should log warnings for the 3 invalid entries
+
+
+class TestFlightSelection:
+    """Tests for flight selection functionality."""
     
     @patch('download.menu.inquirer.prompt')
     def test_display_flight_selection_menu(self, mock_prompt):
@@ -232,6 +372,10 @@ class TestDownloadMenu:
             # Verify results
             assert result is False
             mock_print.assert_called_with("Flight information for flight_10 not found.")
+
+
+class TestErrorHandling:
+    """Tests for error handling utilities."""
     
     @patch('download.menu.input')
     @patch('download.menu.clear_screen')
@@ -246,34 +390,10 @@ class TestDownloadMenu:
             mock_print.assert_called_with("Test error message")
             mock_input.assert_called_once_with("\nPress Enter to continue...")
             mock_clear.assert_called_once()
-    
-    @patch('download.menu.input')
-    @patch('download.menu.clear_screen')
-    def test_prompt_continue_after_download_success(self, mock_clear, mock_input):
-        """Test prompting for continuation after successful download."""
-        # Call function
-        with patch('builtins.print') as mock_print:
-            result = prompt_continue_after_download(True, 5)
-            
-            # Verify results
-            assert result is True
-            mock_print.assert_called_with("Download of flight_5 completed successfully.")
-            mock_input.assert_called_once_with("\nPress Enter to continue...")
-            mock_clear.assert_called_once()
-    
-    @patch('download.menu.input')
-    @patch('download.menu.clear_screen')
-    def test_prompt_continue_after_download_failure(self, mock_clear, mock_input):
-        """Test prompting for continuation after failed download."""
-        # Call function
-        with patch('builtins.print') as mock_print:
-            result = prompt_continue_after_download(False, 5)
-            
-            # Verify results
-            assert result is True
-            mock_print.assert_called_with("Failed to download flight_5.")
-            mock_input.assert_called_once_with("\nPress Enter to continue...")
-            mock_clear.assert_called_once()
+
+
+class TestCustomUrlDownloads:
+    """Tests for custom URL download functionality."""
     
     @patch('download.menu.clear_screen')
     @patch('download.menu.select_platform')
@@ -342,6 +462,10 @@ class TestDownloadMenu:
             mock_download.assert_called_once_with('YouTube Video', 'https://example.com/video', 5)
             mock_print.assert_called_with("Download completed successfully.")
             mock_input.assert_called_once_with("\nPress Enter to continue...")
+
+
+class TestPlatformSelection:
+    """Tests for platform selection and handling."""
     
     @patch('download.menu.prompt_menu_options')
     def test_select_platform(self, mock_prompt):
@@ -447,6 +571,10 @@ class TestDownloadMenu:
         
         # Should return False for unknown platform
         assert result is False
+
+
+class TestDownloadOperations:
+    """Tests for download execution functions."""
     
     @patch('download.menu.download_youtube_video')
     def test_execute_download_youtube(self, mock_youtube):
@@ -486,103 +614,3 @@ class TestDownloadMenu:
         
         # Should return False for unknown media type
         assert result is False
-    
-    @patch('download.menu.clear_screen')
-    @patch('download.menu.get_flight_data')
-    def test_download_from_launch_list_no_data(self, mock_get_data, mock_clear):
-        """Test downloading from launch list when no flight data is available."""
-        # Setup mock
-        mock_get_data.return_value = None
-        
-        # Call function with mocked handle_error
-        with patch('download.menu.handle_error') as mock_handle_error:
-            mock_handle_error.return_value = True
-            
-            # Call function
-            result = download_from_launch_list()
-            
-            # Verify results
-            assert result is True
-            mock_clear.assert_called_once()
-            mock_get_data.assert_called_once()
-            mock_handle_error.assert_called_once_with(
-                "Could not retrieve flight data. Please try again later."
-            )
-    
-    @patch('download.menu.clear_screen')
-    @patch('download.menu.get_flight_data')
-    @patch('download.menu.get_available_flights')
-    def test_download_from_launch_list_no_flights(self, mock_get_flights, mock_get_data, mock_clear):
-        """Test downloading from launch list when no flights are available."""
-        # Setup mocks
-        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
-        mock_get_flights.return_value = []  # No available flights
-        
-        # Call function with mocked handle_error
-        with patch('download.menu.handle_error') as mock_handle_error:
-            mock_handle_error.return_value = True
-            
-            # Call function
-            result = download_from_launch_list()
-            
-            # Verify results
-            assert result is True
-            mock_clear.assert_called_once()
-            mock_get_data.assert_called_once()
-            mock_get_flights.assert_called_once_with({"flight_1": {"url": "url1", "type": "youtube"}})
-            mock_handle_error.assert_called_once_with(
-                "All flights have already been downloaded or no flights are available."
-            )
-    
-    @patch('download.menu.clear_screen')
-    @patch('download.menu.get_flight_data')
-    @patch('download.menu.get_available_flights')
-    @patch('download.menu.display_flight_selection_menu')
-    @patch('download.menu.download_media_menu')
-    def test_download_from_launch_list_back_option(self, mock_menu, mock_display, 
-                                                mock_get_flights, mock_get_data, mock_clear):
-        """Test downloading from launch list when selecting to go back."""
-        # Setup mocks
-        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
-        mock_get_flights.return_value = [("Flight 1 (YouTube)", 1)]
-        mock_display.return_value = -1  # Back option
-        mock_menu.return_value = True
-        
-        # Call function
-        result = download_from_launch_list()
-        
-        # Verify results
-        assert result is True
-        mock_clear.assert_called()
-        mock_get_data.assert_called_once()
-        mock_get_flights.assert_called_once()
-        mock_display.assert_called_once_with([("Flight 1 (YouTube)", 1), ("Back to download menu", -1)])
-        mock_menu.assert_called_once()
-    
-    @patch('download.menu.clear_screen')
-    @patch('download.menu.get_flight_data')
-    @patch('download.menu.get_available_flights')
-    @patch('download.menu.display_flight_selection_menu')
-    @patch('download.menu.download_selected_flight')
-    @patch('download.menu.prompt_continue_after_download')
-    def test_download_from_launch_list_success(self, mock_prompt, mock_download, mock_display,
-                                             mock_get_flights, mock_get_data, mock_clear):
-        """Test successful download from launch list."""
-        # Setup mocks
-        mock_get_data.return_value = {"flight_1": {"url": "url1", "type": "youtube"}}
-        mock_get_flights.return_value = [("Flight 1 (YouTube)", 1)]
-        mock_display.return_value = 1  # Selected Flight 1
-        mock_download.return_value = True
-        mock_prompt.return_value = True
-        
-        # Call function
-        result = download_from_launch_list()
-        
-        # Verify results
-        assert result is True
-        mock_clear.assert_called_once()
-        mock_get_data.assert_called_once()
-        mock_get_flights.assert_called_once()
-        mock_display.assert_called_once_with([("Flight 1 (YouTube)", 1), ("Back to download menu", -1)])
-        mock_download.assert_called_once_with({"flight_1": {"url": "url1", "type": "youtube"}}, 1)
-        mock_prompt.assert_called_once_with(True, 1)

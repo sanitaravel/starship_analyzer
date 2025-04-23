@@ -20,7 +20,25 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
     Returns:
         tuple: A tuple containing the ROIs for Superheavy Speed, Superheavy Altitude, Starship Speed, Starship Altitude, and Time.
     """
+    # Check if image is None before trying to access shape
+    if image is None:
+        logger.error("Input image is None")
+        # Return empty ROIs
+        empty_roi = np.zeros((1, 1, 3), dtype=np.uint8)
+        return empty_roi, empty_roi, empty_roi, empty_roi, empty_roi
+    
     logger.debug(f"Preprocessing image of shape {image.shape}")
+    
+    # Check if image dimensions are sufficient
+    required_height = 948 + 25  # Max y-coordinate + height
+    required_width = 1572 + 50  # Max x-coordinate + width
+    
+    if image.shape[0] < required_height or image.shape[1] < required_width:
+        logger.error(f"Image dimensions ({image.shape[0]}x{image.shape[1]}) are too small for ROI extraction. " 
+                     f"Minimum required: {required_height}x{required_width}")
+        # Return empty ROIs
+        empty_roi = np.zeros((1, 1, 3), dtype=np.uint8)
+        return empty_roi, empty_roi, empty_roi, empty_roi, empty_roi
     
     try:
         # Define ROIs based on the provided coordinates and dimensions

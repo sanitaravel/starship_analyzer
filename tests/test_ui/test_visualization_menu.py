@@ -18,8 +18,8 @@ from ui.visualization_menu import (
     execute_launch_comparison
 )
 
-class TestVisualizationMenu:
-    """Tests for the visualization menu functions."""
+class TestMainVisualizationMenu:
+    """Tests for the main visualization menu functionality."""
     
     @patch('ui.visualization_menu.inquirer.prompt')
     @patch('ui.visualization_menu.visualize_flight_data')
@@ -81,6 +81,10 @@ class TestVisualizationMenu:
         assert result is True
         mock_clear.assert_called()
         assert mock_prompt.call_count == 1
+
+
+class TestFlightDataVisualization:
+    """Tests for flight data visualization functionality."""
     
     @patch('ui.visualization_menu.os.listdir')
     @patch('ui.visualization_menu.os.path.isdir')
@@ -132,6 +136,10 @@ class TestVisualizationMenu:
         assert result is True
         mock_input.assert_called_once()
         mock_clear.assert_called()
+
+
+class TestLaunchFolders:
+    """Tests for launch folder management."""
     
     @patch('ui.visualization_menu.os.listdir')
     @patch('ui.visualization_menu.os.path.isdir')
@@ -168,6 +176,10 @@ class TestVisualizationMenu:
             assert result is False
             mock_input.assert_called_once()
             mock_clear.assert_called_once()
+
+
+class TestLaunchComparison:
+    """Tests for launch comparison functionality."""
     
     @patch('ui.visualization_menu.inquirer.prompt')
     def test_prompt_for_comparison_options(self, mock_prompt):
@@ -231,6 +243,10 @@ class TestVisualizationMenu:
         assert args[1] == 100  # end_time converted to int
         assert len(args) == 4  # start_time, end_time, and 2 json paths
         assert kwargs['show_figures'] is True
+
+
+class TestComparisonMenu:
+    """Tests for the launch comparison menu workflow."""
     
     @patch('ui.visualization_menu.get_launch_folders')
     @patch('ui.visualization_menu.validate_available_launches')

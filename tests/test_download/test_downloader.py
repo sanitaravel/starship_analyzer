@@ -26,12 +26,15 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with("flight_recordings", exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command
+        # Verify the subprocess.run command with video-only parameters
         args, kwargs = mock_run.call_args
         assert args[0][0] == "yt-dlp"
-        assert args[0][1] == "-o"
-        assert args[0][2] == "flight_recordings/flight_5.%(ext)s"
-        assert args[0][3] == "https://twitter.com/video"
+        assert args[0][1] == "-f"
+        assert args[0][2] == "bestvideo[ext=mp4]/bestvideo/best"
+        assert args[0][3] == "--no-audio"
+        assert args[0][4] == "-o"
+        assert args[0][5] == "flight_recordings/flight_5.%(ext)s"
+        assert args[0][6] == "https://twitter.com/video"
         assert kwargs.get('check') is True
     
     @patch('os.makedirs')
@@ -50,9 +53,9 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with(custom_path, exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command uses the custom path
+        # Verify the subprocess.run command uses the custom path with video-only parameters
         args, kwargs = mock_run.call_args
-        assert args[0][2] == f"{custom_path}/flight_10.%(ext)s"
+        assert args[0][5] == f"{custom_path}/flight_10.%(ext)s"
     
     @patch('os.makedirs')
     @patch('subprocess.run')
@@ -103,14 +106,15 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with("flight_recordings", exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command for YouTube
+        # Verify the subprocess.run command for YouTube with video-only parameters
         args, kwargs = mock_run.call_args
         assert args[0][0] == "yt-dlp"
         assert args[0][1] == "-f"
-        assert "mp4" in args[0][2]  # Format should include mp4
-        assert args[0][3] == "-o"
-        assert args[0][4] == "flight_recordings/flight_5.%(ext)s"
-        assert args[0][5] == "https://youtube.com/watch"
+        assert args[0][2] == "bestvideo[ext=mp4]/bestvideo/best"
+        assert args[0][3] == "--no-audio"
+        assert args[0][4] == "-o"
+        assert args[0][5] == "flight_recordings/flight_5.%(ext)s"
+        assert args[0][6] == "https://youtube.com/watch"
         assert kwargs.get('check') is True
     
     @patch('os.makedirs')
@@ -129,9 +133,9 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with(custom_path, exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command uses the custom path
+        # Verify the subprocess.run command uses the custom path with video-only parameters
         args, kwargs = mock_run.call_args
-        assert args[0][4] == f"{custom_path}/flight_10.%(ext)s"
+        assert args[0][5] == f"{custom_path}/flight_10.%(ext)s"
     
     @patch('os.makedirs')
     @patch('subprocess.run')
