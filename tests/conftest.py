@@ -28,6 +28,9 @@ def pytest_configure(config):
     # Register ui marker for UI tests
     config.addinivalue_line("markers",
                            "ui: marks tests for UI components")
+    # Register timeout marker for tests with custom timeouts
+    config.addinivalue_line("markers",
+                           "timeout: marks tests with custom timeout duration")
 
 def pytest_collection_modifyitems(config, items):
     """Add markers to tests based on their module."""
@@ -38,6 +41,12 @@ def pytest_collection_modifyitems(config, items):
         # Add ui marker for all tests in UI module
         if "test_ui" in item.nodeid:
             item.add_marker(pytest.mark.ui)
+
+        # Apply custom timeouts from markers if specified
+        timeout_marker = item.get_closest_marker("timeout")
+        if timeout_marker and timeout_marker.args:
+            item.add_marker(pytest.mark.timeout(timeout_marker.args[0]))
+
 
 # Track the current module and class for grouping output
 _current_module = None
