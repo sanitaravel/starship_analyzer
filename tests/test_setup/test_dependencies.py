@@ -184,6 +184,9 @@ class TestInstallDependencies:
         mock_run.return_value = MagicMock(returncode=0)
         mock_install_torch.return_value = True
         
+        # Expected pip path for Windows
+        expected_pip_path = os.path.join("venv", "Scripts", "pip.exe")
+        
         # Mock reading requirements.txt
         with patch('builtins.open', mock_open(read_data="""
         numpy==1.24.3
@@ -199,7 +202,7 @@ class TestInstallDependencies:
         # Check correct pip path for Windows
         assert mock_run.call_count >= 3  # pip upgrade + 2 packages
         # Check PyTorch installation was called
-        mock_install_torch.assert_called_once_with("venv\\Scripts\\pip.exe", "12.4", debug=False)
+        mock_install_torch.assert_called_once_with(expected_pip_path, "12.4", debug=False)
     
     @patch('os.path.exists')
     @patch('subprocess.run')
@@ -291,6 +294,9 @@ class TestInstallDependencies:
         mock_run.return_value = MagicMock(returncode=0)
         mock_install_torch.return_value = True
         
+        # Expected pip path for Windows
+        expected_pip_path = os.path.join("venv", "Scripts", "pip.exe")
+        
         # Mock empty requirements file
         with patch('builtins.open', mock_open(read_data="")):
             # Call the function with force_cpu=True
@@ -299,7 +305,7 @@ class TestInstallDependencies:
         # Verify results
         assert result is True
         # Check that PyTorch was installed with None instead of CUDA version
-        mock_install_torch.assert_called_once_with("venv\\Scripts\\pip.exe", None, debug=False)
+        mock_install_torch.assert_called_once_with(expected_pip_path, None, debug=False)
     
     @patch('os.path.exists')
     @patch('subprocess.run')
@@ -313,6 +319,9 @@ class TestInstallDependencies:
         mock_run.return_value = MagicMock(returncode=0)
         mock_install_torch.return_value = True
         
+        # Expected pip path for Windows
+        expected_pip_path = os.path.join("venv", "Scripts", "pip.exe")
+        
         # Mock empty requirements file
         with patch('builtins.open', mock_open(read_data="")):
             # Call the function with debug=True
@@ -321,7 +330,7 @@ class TestInstallDependencies:
         # Verify results
         assert result is True
         # Check that PyTorch was installed with debug=True
-        mock_install_torch.assert_called_once_with("venv\\Scripts\\pip.exe", "12.4", debug=True)
+        mock_install_torch.assert_called_once_with(expected_pip_path, "12.4", debug=True)
         # Verify subprocess.run was called without capture_output
         for call_args in mock_run.call_args_list:
             assert 'capture_output' not in call_args[1]
