@@ -416,20 +416,31 @@ def compute_acceleration(df: pd.DataFrame, speed_column: str, frame_distance: in
     return acceleration
 
 
-def compute_g_force(acceleration_ms2: pd.Series) -> pd.Series:
+def compute_g_force(acceleration_ms2: pd.Series, inplace: bool = False) -> pd.Series:
     """
     Convert acceleration in m/s² to G-forces.
     
     Args:
         acceleration_ms2 (pd.Series): Acceleration values in m/s²
+        inplace (bool): If True, modify the input series directly (more efficient)
         
     Returns:
         pd.Series: G-force values (1G = 9.81 m/s²)
     """
     logger.debug(f"Converting acceleration values to G forces (dividing by {G_FORCE_CONVERSION})")
-    g_forces = acceleration_ms2 / G_FORCE_CONVERSION
     
-    # Quick validation check
+    # Use the input series directly if inplace=True
+    if inplace:
+        acceleration_ms2.values[:] = acceleration_ms2.values / G_FORCE_CONVERSION
+        g_forces = acceleration_ms2
+    else:
+        # Create a new series with the calculated values
+        g_forces = pd.Series(
+            acceleration_ms2.values / G_FORCE_CONVERSION,
+            index=acceleration_ms2.index
+        )
+    
+    # Only calculate min/max if debug logging is enabled
     if not g_forces.isna().all():
         logger.debug(f"G-force range: {g_forces.min()} to {g_forces.max()} g")
     

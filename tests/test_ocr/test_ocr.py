@@ -36,7 +36,7 @@ def mock_easyocr_reader():
 
 @pytest.fixture
 def test_rois():
-    """Create test ROIs with different shapes for different data types."""
+    """Create test ROIs with different shapes for different data types."""    
     speed_roi = np.zeros((25, 83, 3), dtype=np.uint8)
     altitude_roi = np.zeros((25, 50, 3), dtype=np.uint8)
     time_roi = np.zeros((44, 197, 3), dtype=np.uint8)
@@ -58,12 +58,12 @@ class TestGetReader:
         reader_instance = MagicMock()
         mock_reader.return_value = reader_instance
         
-        # Reset thread local to ensure clean test
-        if hasattr(threading.local(), 'reader'):
-            delattr(threading.local(), 'reader')
+        # Create a fresh thread local storage for testing
+        test_thread_local = threading.local()
         
-        # Need to mock additional CUDA functions to avoid fallback to CPU
-        with patch('ocr.ocr.torch.cuda.set_device') as mock_set_device, \
+        # Use patch to replace the _thread_local in the ocr module with our test one
+        with patch('ocr.ocr._thread_local', test_thread_local), \
+             patch('ocr.ocr.torch.cuda.set_device') as mock_set_device, \
              patch('ocr.ocr.torch.cuda.get_device_name') as mock_get_device_name, \
              patch('ocr.ocr.torch.cuda.get_device_properties') as mock_get_device_props:
             
@@ -91,14 +91,11 @@ class TestGetReader:
         reader_instance = MagicMock()
         mock_reader.return_value = reader_instance
         
-        # Reset thread local to ensure clean test
-        # First delete any existing reader attribute
-        thread_local = threading.local()
-        if hasattr(thread_local, 'reader'):
-            delattr(thread_local, 'reader')
+        # Create a fresh thread local storage for testing
+        test_thread_local = threading.local()
             
-        # Then patch the thread_local object itself to ensure we're starting fresh
-        with patch('ocr.ocr._thread_local', thread_local):
+        # Use patch to replace the _thread_local in the ocr module with our test one
+        with patch('ocr.ocr._thread_local', test_thread_local):
             # Call the function
             result = get_reader()
             
@@ -117,13 +114,11 @@ class TestGetReader:
         reader_instance = MagicMock()
         mock_reader.return_value = reader_instance
         
-        # Ensure thread local is clean
-        thread_local = threading.local()
-        if hasattr(thread_local, 'reader'):
-            delattr(thread_local, 'reader')
+        # Create a fresh thread local storage for testing
+        test_thread_local = threading.local()
         
-        # Use a fresh thread_local to ensure initialization runs
-        with patch('ocr.ocr._thread_local', thread_local):
+        # Use patch to replace the _thread_local in the ocr module
+        with patch('ocr.ocr._thread_local', test_thread_local):
             # Mock CUDA functions - set_device raises exception
             with patch('ocr.ocr.torch.cuda.set_device') as mock_set_device, \
                  patch('ocr.ocr.logger') as mock_logger:
@@ -152,13 +147,11 @@ class TestGetReader:
         reader_instance = MagicMock()
         mock_reader.return_value = reader_instance
         
-        # Create a fresh thread local storage
-        thread_local = threading.local()
-        if hasattr(thread_local, 'reader'):
-            delattr(thread_local, 'reader')
+        # Create a fresh thread local storage for testing
+        test_thread_local = threading.local()
         
-        # Use a fresh thread_local and properly mock CUDA functions
-        with patch('ocr.ocr._thread_local', thread_local), \
+        # Use patch to replace the _thread_local in the ocr module
+        with patch('ocr.ocr._thread_local', test_thread_local), \
              patch('ocr.ocr.torch.cuda.set_device') as mock_set_device, \
              patch('ocr.ocr.torch.cuda.get_device_name') as mock_get_device_name, \
              patch('ocr.ocr.torch.cuda.get_device_properties') as mock_get_device_props:
@@ -179,11 +172,11 @@ class TestGetReader:
 
 
 class TestExtractValuesFromROI:
-    """Tests for extract_values_from_roi function."""
+    """Tests for extract_values_from_roi function."""    
     
     @patch('ocr.ocr.get_reader')
     def test_extract_speed(self, mock_get_reader, test_rois):
-        """Test extracting speed value."""
+        """Test extracting speed value."""        
         speed_roi, _, _, _ = test_rois
         
         # Setup mock reader
@@ -200,7 +193,7 @@ class TestExtractValuesFromROI:
     
     @patch('ocr.ocr.get_reader')
     def test_extract_altitude(self, mock_get_reader, test_rois):
-        """Test extracting altitude value."""
+        """Test extracting altitude value."""        
         _, altitude_roi, _, _ = test_rois
         
         # Setup mock reader
@@ -217,7 +210,7 @@ class TestExtractValuesFromROI:
     
     @patch('ocr.ocr.get_reader')
     def test_extract_time(self, mock_get_reader, test_rois):
-        """Test extracting time value."""
+        """Test extracting time value."""        
         _, _, time_roi, _ = test_rois
         
         # Setup mock reader
@@ -234,7 +227,7 @@ class TestExtractValuesFromROI:
     
     @patch('ocr.ocr.get_reader')
     def test_invalid_roi(self, mock_get_reader, test_rois):
-        """Test handling of invalid ROI."""
+        """Test handling of invalid ROI."""        
         _, _, _, empty_roi = test_rois
         
         # Call the function with empty ROI
@@ -253,7 +246,7 @@ class TestExtractValuesFromROI:
     
     @patch('ocr.ocr.get_reader')
     def test_unknown_mode(self, mock_get_reader, test_rois):
-        """Test handling of unknown mode."""
+        """Test handling of unknown mode."""        
         speed_roi, _, _, _ = test_rois
         
         # Setup mock reader
@@ -273,7 +266,7 @@ class TestExtractValuesFromROI:
     
     @patch('ocr.ocr.get_reader')
     def test_cuda_out_of_memory(self, mock_get_reader, test_rois):
-        """Test handling of CUDA out of memory error."""
+        """Test handling of CUDA out of memory error."""        
         speed_roi, _, _, _ = test_rois
         
         # Setup mock reader to raise CUDA OOM error then succeed
@@ -311,39 +304,39 @@ class TestExtractValuesFromROI:
 
 
 class TestExtractSingleValue:
-    """Tests for extract_single_value function."""
+    """Tests for extract_single_value function."""    
     
     def test_valid_input(self):
-        """Test extraction with valid input."""
+        """Test extraction with valid input."""        
         assert extract_single_value("100") == 100
         assert extract_single_value("speed is 100") == 100
         assert extract_single_value("100 km/h") == 100
     
     def test_multiple_numbers(self):
-        """Test extraction with multiple numbers - should take first one."""
+        """Test extraction with multiple numbers - should take first one."""        
         assert extract_single_value("100 200 300") == 100
     
     def test_no_numbers(self):
-        """Test extraction with no numbers."""
+        """Test extraction with no numbers."""        
         with patch('ocr.ocr.logger') as mock_logger:
             assert extract_single_value("no numbers here") is None
             mock_logger.debug.assert_called_once()
 
 
 class TestExtractTime:
-    """Tests for extract_time function."""
+    """Tests for extract_time function."""    
     
     def test_valid_time(self):
-        """Test extraction with valid time format."""
+        """Test extraction with valid time format."""        
         assert extract_time("+01:30:00") == {"sign": "+", "hours": 1, "minutes": 30, "seconds": 0}
         assert extract_time("-00:05:15") == {"sign": "-", "hours": 0, "minutes": 5, "seconds": 15}
     
     def test_time_in_text(self):
-        """Test extraction with time embedded in text."""
+        """Test extraction with time embedded in text."""        
         assert extract_time("Time is +01:30:00 now") == {"sign": "+", "hours": 1, "minutes": 30, "seconds": 0}
     
     def test_invalid_format(self):
-        """Test extraction with invalid time format."""
+        """Test extraction with invalid time format."""        
         with patch('ocr.ocr.logger') as mock_logger:
             assert extract_time("01:30:00") is None  # Missing sign
             assert extract_time("+1:30:0") is None  # Wrong format

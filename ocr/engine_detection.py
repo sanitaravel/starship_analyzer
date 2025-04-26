@@ -47,8 +47,8 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     Returns:
         Dict: Dictionary with engine sections as keys and lists of boolean status as values.
     """
-    # Initialize engine status dictionary
-    engine_status = {section: [] for section in engine_coords.keys()}
+    # Initialize results dictionary directly
+    engine_status = {}
     
     if debug:
         logger.debug(f"Checking {engine_type} engines with threshold: {WHITE_THRESHOLD}")
@@ -56,14 +56,15 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     
     # Check engines
     for section, coordinates in engine_coords.items():
-        # Convert list to numpy array if needed to avoid numba warnings
-        if not isinstance(coordinates, np.ndarray):
-            coordinates = np.array(coordinates)
+        # Avoid unnecessary array creation if already numpy array
+        coords_array = coordinates if isinstance(coordinates, np.ndarray) else np.array(coordinates)
             
-        engine_status[section] = check_engines_numba(image, coordinates, WHITE_THRESHOLD)
+        # Store results directly in dictionary without intermediate list
+        engine_status[section] = check_engines_numba(image, coords_array, WHITE_THRESHOLD)
+        
         if debug:
             active_count = sum(engine_status[section])
-            logger.debug(f"{engine_type} {section} summary: {active_count} active engines out of {len(coordinates)}")
+            logger.debug(f"{engine_type} {section} summary: {active_count} active engines out of {len(coords_array)}")
                     
     return engine_status
 
