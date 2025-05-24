@@ -26,11 +26,11 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with("flight_recordings", exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command with video-only parameters
+        # Verify the subprocess.run command with video-only parameters and 1080p resolution
         args, kwargs = mock_run.call_args
         assert args[0][0] == "yt-dlp"
         assert args[0][1] == "-f"
-        assert args[0][2] == "bestvideo[ext=mp4]/bestvideo/best"
+        assert args[0][2] == "bestvideo[height<=1080][ext=mp4]/bestvideo[height<=1080]/best[height<=1080]"
         assert args[0][3] == "--no-audio"
         assert args[0][4] == "-o"
         assert args[0][5] == "flight_recordings/flight_5.%(ext)s"
@@ -106,11 +106,11 @@ class TestDownloader:
         mock_makedirs.assert_called_once_with("flight_recordings", exist_ok=True)
         mock_run.assert_called_once()
         
-        # Verify the subprocess.run command for YouTube with video-only parameters
+        # Verify the subprocess.run command for YouTube with video-only parameters and 1080p resolution
         args, kwargs = mock_run.call_args
         assert args[0][0] == "yt-dlp"
         assert args[0][1] == "-f"
-        assert args[0][2] == "bestvideo[ext=mp4]/bestvideo/best"
+        assert args[0][2] == "bestvideo[height<=1080][ext=mp4]/bestvideo[height<=1080]/best[height<=1080]"
         assert args[0][3] == "--no-audio"
         assert args[0][4] == "-o"
         assert args[0][5] == "flight_recordings/flight_5.%(ext)s"

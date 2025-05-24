@@ -29,10 +29,10 @@ def download_twitter_broadcast(url, flight_number, output_path="flight_recording
         logger.info(f"Downloading Twitter broadcast from {url}")
         logger.info(f"Output file will be saved as: {output_template}")
         
-        # Run yt-dlp to download the video only
+        # Run yt-dlp to download the video only at 1080p resolution
         subprocess.run([
             "yt-dlp",
-            "-f", "bestvideo[ext=mp4]/bestvideo/best",
+            "-f", "bestvideo[height<=1080][ext=mp4]/bestvideo[height<=1080]/best[height<=1080]",
             "--no-audio",  # Explicitly disable audio download
             "-o", output_template,
             url
@@ -71,10 +71,10 @@ def download_youtube_video(url, flight_number, output_path="flight_recordings"):
         logger.info(f"Downloading YouTube video from {url}")
         logger.info(f"Output file will be saved as: {output_template}")
         
-        # Run yt-dlp to download video only, without audio
+        # Run yt-dlp to download video only at 1080p resolution, without audio
         subprocess.run([
             "yt-dlp",
-            "-f", "bestvideo[ext=mp4]/bestvideo/best",
+            "-f", "bestvideo[height<=1080][ext=mp4]/bestvideo[height<=1080]/best[height<=1080]",
             "--no-audio",  # Explicitly disable audio download
             "-o", output_template,
             url
