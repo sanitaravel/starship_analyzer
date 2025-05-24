@@ -1,24 +1,7 @@
 """
-Global pytest configuration for cleaner test output.
+Global pytest configuration.
 """
-import os
 import pytest
-import platform
-
-def clear_screen():
-    """Clear the terminal screen based on operating system."""
-    if platform.system() == "Windows":
-        os.system('cls')
-    else:
-        os.system('clear')
-
-def pytest_sessionstart(session):
-    """
-    Called after the Session object has been created and before performing collection
-    and entering the run test loop.
-    """
-    # Clear the screen at the beginning of the test session
-    clear_screen()
 
 def pytest_configure(config):
     """Configure pytest to show cleaner output."""
@@ -28,9 +11,6 @@ def pytest_configure(config):
     # Register ui marker for UI tests
     config.addinivalue_line("markers",
                            "ui: marks tests for UI components")
-    # Register timeout marker for tests with custom timeouts
-    config.addinivalue_line("markers",
-                           "timeout: marks tests with custom timeout duration")
 
 def pytest_collection_modifyitems(config, items):
     """Add markers to tests based on their module."""
@@ -41,12 +21,6 @@ def pytest_collection_modifyitems(config, items):
         # Add ui marker for all tests in UI module
         if "test_ui" in item.nodeid:
             item.add_marker(pytest.mark.ui)
-
-        # Apply custom timeouts from markers if specified
-        timeout_marker = item.get_closest_marker("timeout")
-        if timeout_marker and timeout_marker.args:
-            item.add_marker(pytest.mark.timeout(timeout_marker.args[0]))
-
 
 # Track the current module and class for grouping output
 _current_module = None

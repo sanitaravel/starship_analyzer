@@ -14,15 +14,28 @@ A powerful Python toolkit for extracting, analyzing, and visualizing telemetry d
   - [Table of Contents](#table-of-contents)
   - [📊 What is Starship Analyzer?](#-what-is-starship-analyzer)
   - [✨ Key Features](#-key-features)
-  - [📚 Documentation Wiki](#-documentation-wiki)
-  - [🛠️ Quick Installation](#️-quick-installation)
+  - [🛠️ Installation](#️-installation)
     - [Prerequisites](#prerequisites)
-    - [Setup](#setup)
-  - [📋 Basic Usage](#-basic-usage)
+    - [Quick Start](#quick-start)
+    - [Manual Installation](#manual-installation)
+    - [Updating the Application](#updating-the-application)
+    - [Key Dependencies](#key-dependencies)
+  - [📋 Usage Guide](#-usage-guide)
+    - [Getting Started](#getting-started)
+    - [Workflow](#workflow)
+    - [Logging System](#logging-system)
+    - [Debug Mode](#debug-mode)
+    - [Available Commands](#available-commands)
   - [🔍 How It Works](#-how-it-works)
+  - [📂 Project Structure](#-project-structure)
+  - [📊 Example Outputs](#-example-outputs)
+  - [🚀 Performance Tips](#-performance-tips)
   - [👥 Contributing](#-contributing)
+  - [🧪 Code Quality](#-code-quality)
   - [📄 License](#-license)
+  - [📚 Citation](#-citation)
   - [📧 Contact](#-contact)
+  - [🛡️ Data Collection Notice](#️-data-collection-notice)
 
 ## 📊 What is Starship Analyzer?
 
@@ -45,23 +58,11 @@ The tool processes video frames in parallel, cleans the extracted data, and gene
 | **Fuel Level Analysis** | Monitoring of LOX and CH4 tank levels in Superheavy booster and Starship |
 | **Performance Analysis** | Calculates derived metrics like acceleration and G-forces |
 | **Multi-launch Comparison** | Compare performance metrics across different Starship test flights |
-| **Interactive Visualizations** | Generate detailed graphs and plots with zoom capabilities, tooltips, and exportable formats |
+| **Interactive Visualizations** | Generate detailed graphs and plots with zoom capabilities, tooltips, and exportable formats (PNG, SVG, CSV) |
 | **Parallel Processing** | Efficiently processes video frames using multi-core architecture |
 | **User-friendly CLI** | Simple menu-driven interface with no programming knowledge required |
 
-## 📚 Documentation Wiki
-
-For detailed documentation, please visit our [GitHub Wiki](https://github.com/sanitaravel/starship_analyzer/wiki) which covers:
-
-- [Installation Guide](https://github.com/sanitaravel/starship_analyzer/wiki/Installation) - Detailed setup instructions
-- [Usage Guide](https://github.com/sanitaravel/starship_analyzer/wiki/Usage-Guide) - Complete usage instructions
-- [How It Works](https://github.com/sanitaravel/starship_analyzer/wiki/How-It-Works) - Technical explanation
-- [API Documentation](https://github.com/sanitaravel/starship_analyzer/wiki/API-Documentation) - For developers
-- [Contributing Guidelines](https://github.com/sanitaravel/starship_analyzer/wiki/Contributing) - How to contribute
-- [FAQ](https://github.com/sanitaravel/starship_analyzer/wiki/FAQ) - Common questions
-- [Troubleshooting](https://github.com/sanitaravel/starship_analyzer/wiki/Troubleshooting) - Solutions to common problems
-
-## 🛠️ Quick Installation
+## 🛠️ Installation
 
 ### Prerequisites
 
@@ -69,26 +70,101 @@ For detailed documentation, please visit our [GitHub Wiki](https://github.com/sa
 - NVIDIA GPU with CUDA support (recommended but optional)
 - 8GB+ RAM recommended for processing high-resolution videos
 
-### Setup
+### Quick Start
 
-```bash
-# Clone the repository
-git clone https://github.com/sanitaravel/starship_analyzer.git
-cd starship_analyzer
+1. **Clone the repository**
 
-# Run the setup script
-python setup.py
+   ```bash
+   git clone https://github.com/sanitaravel/starship_analyzer.git
+   cd starship_analyzer
+   ```
 
-# Activate the virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-```
+2. **Run the setup script**
 
-For detailed installation instructions, including manual setup and troubleshooting, see the [Installation Wiki](https://github.com/sanitaravel/starship_analyzer/wiki/Installation).
+   ```bash
+   python setup.py
+   ```
 
-## 📋 Basic Usage
+   This will:
+   - Create a Python virtual environment
+   - Detect CUDA availability for GPU acceleration
+   - Install the right PyTorch version for your system
+   - Set up all dependencies automatically
+
+3. **Activate the virtual environment**
+   - Windows: `venv\Scripts\activate`
+   - macOS/Linux: `source venv/bin/activate`
+
+### Manual Installation
+
+If you prefer to set up the environment manually:
+
+1. Create a virtual environment:
+
+   ```bash
+   python -m venv venv
+   ```
+
+2. Activate the virtual environment:
+   - Windows: `venv\Scripts\activate`
+   - macOS/Linux: `source venv/bin/activate`
+
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Updating the Application
+
+To update Starship Analyzer to the latest version without recreating your environment:
+
+1. **Pull the latest code**
+
+   ```bash
+   git pull
+   ```
+
+2. **Run the update command**
+
+   ```bash
+   python setup.py --update
+   ```
+
+   This will:
+   - Keep your existing virtual environment
+   - Check your CUDA configuration
+   - Update all dependencies to their required versions
+   - Verify installations are working correctly
+
+3. **When to update**
+   - After pulling changes from the repository
+   - When new dependencies have been added
+   - If you're experiencing compatibility issues
+   - When new SpaceX webcast formats require updated analysis capabilities
+
+Additional update options:
+
+   ```bash
+   # Force CPU-only installation even if CUDA is available
+   python setup.py --update --force-cpu
+   
+   # Run update without user interaction
+   python setup.py --update --unattended
+   ```
+
+### Key Dependencies
+
+- **OpenCV**: For video processing and computer vision tasks
+- **EasyOCR**: For optical character recognition
+- **PyTorch**: Backend for OCR operations (GPU acceleration when available)
+- **Matplotlib/Plotly**: For visualization and data plotting
+- **NumPy/Pandas**: For data handling and analysis
+- **yt-dlp**: For downloading Starship webcasts
+
+## 📋 Usage Guide
+
+### Getting Started
 
 1. Place your Starship launch videos in the `flight_recordings` folder
 2. Run the application:
@@ -99,7 +175,8 @@ For detailed installation instructions, including manual setup and troubleshooti
 
 3. Follow the interactive menu to process videos and generate analyses
 
-The workflow follows this pattern:
+### Workflow
+
 ```text
 Flight Recording → Frame Processing → Data Extraction → Analysis → Visualization
 ```
@@ -108,6 +185,52 @@ Flight Recording → Frame Processing → Data Extraction → Analysis → Visua
 2. **Processing**: Extract telemetry data through parallel frame processing
 3. **Analysis**: Clean data, calculate derived metrics, and detect patterns
 4. **Output**: Generate visualizations and comparison plots in the `results` directory
+
+### Logging System
+
+The application maintains detailed logs to help with troubleshooting:
+
+- Each session creates a timestamped log file in the `logs` directory
+- Log files follow the format `starship_analyzer_YYYYMMDD_HHMMSS.log`
+- Console output shows essential information while full details are saved to log files
+- System hardware and software details are logged at startup for troubleshooting
+- For debugging issues, check the latest log file in the `logs` directory
+
+### Debug Mode
+
+Debug mode provides enhanced logging and diagnostic information to help troubleshoot issues:
+
+- Enable/disable debug mode directly from the main menu using the "Toggle Debug Mode" option
+- When enabled, detailed diagnostic information is logged about:
+  - OCR processing and text extraction
+  - Engine detection with pixel values
+  - Memory usage and CUDA device information
+  - Detailed data processing steps and statistics
+- Use debug mode when:
+  - Troubleshooting extraction issues with specific frames
+  - Diagnosing performance problems or accuracy issues
+  - Developing new features or fixing bugs
+  - Analyzing the internal behavior of the application
+
+Debug mode logs are more verbose but provide valuable insights when resolving complex issues.
+
+### Available Commands
+
+The application's main menu provides several options:
+
+| Menu Option | Submenu | Description |
+|-------------|---------|-------------|
+| **Video Processing** | | Options for extracting data from videos |
+| | **Process random video frame** | Test extraction on a single frame to validate setup |
+| | **Process complete video** | Extract data from all frames in a recording |
+| **Data Visualization** | | Options for visualizing extracted data |
+| | **Visualize flight data** | Generate plots from processed launch data |
+| | **Visualize multiple launches data** | Compare metrics across different flights |
+| **Download Media** | | Options for downloading Starship launch videos |
+| | **Download from launch list** | Download videos from curated list of Starship launches |
+| | **Download from custom URL** | Download videos from custom YouTube or Twitter/X URLs |
+| **Toggle Debug Mode** | | Enable/disable detailed diagnostic information |
+| **Exit** | | Exit the application |
 
 ## 🔍 How It Works
 
@@ -129,6 +252,68 @@ The processed data is available through an interactive visualization interface t
 - Performance metrics across different flight phases
 - Comparative analysis between multiple launches
 
+## 📂 Project Structure
+
+```bash
+starship_analyzer/
+├── ocr/                      # Optical Character Recognition subsystem
+│   ├── engine_detection.py   # Engine state detection
+│   ├── extract_data.py       # Main data extraction logic
+│   ├── fuel_level_extraction.py # Fuel level detection
+│   └── ocr.py                # Text recognition from telemetry
+├── plot/                     # Data processing and visualization tools
+│   ├── data_processing.py    # Data cleaning and calculation
+│   ├── flight_plotting.py    # Single flight visualization
+│   ├── comparison_plotting.py # Multiple flight comparison
+│   └── interactive_viewer.py # Interactive plot viewer
+├── processing/               # Video and frame processing engine
+│   ├── frame_processing.py   # Single frame analysis
+│   └── video_processing.py   # Batch processing of videos
+├── ui/                       # User interface components
+│   ├── main_menu.py          # Main application menu
+│   ├── video_menu.py         # Video processing options
+│   └── visualization_menu.py # Visualization options
+├── utils/                    # Utility functions and helpers
+│   ├── constants.py          # Application constants
+│   ├── logger.py             # Logging configuration
+│   ├── terminal.py           # Terminal utilities
+│   └── validators.py         # Input validation
+├── setup/                    # Installation and setup modules
+│   ├── environment.py        # Environment setup
+│   ├── dependencies.py       # Dependency management
+│   └── utilities.py          # Setup utilities
+├── flight_recordings/        # Input directory for launch videos
+├── results/                  # Output directory for processed data
+├── logs/                     # Application log files
+├── .tmp/                     # Temporary files directory
+├── main.py                   # Application entry point
+├── setup.py                  # Installation script
+├── requirements.txt          # Project dependencies
+└── LICENSE                   # License information
+```
+
+## 📊 Example Outputs
+
+The tool generates several types of visualizations:
+
+- **Telemetry Plots**: Speed and altitude over time with smooth trend lines
+- **Performance Analysis**: Acceleration and G-force profiles with NASA threshold lines
+- **Engine Activity**: Timelines showing which engines are firing with color-coded indicators
+- **Fuel Consumption**: Tracking of LOX and CH4 levels in both vehicle stages over time
+- **Correlation Analysis**: Relationship between engine patterns and vehicle performance
+- **Launch Comparisons**: Side-by-side analysis of different Starship flights for trend analysis
+
+## 🚀 Performance Tips
+
+- Processing high-resolution videos requires significant computing resources
+- GPU acceleration dramatically improves OCR processing speed (5-10x faster)
+- Adjust batch sizes in the menu for optimal performance on your system:
+  - For systems with <16GB RAM: Use batch sizes of 5-10
+  - For systems with >16GB RAM: Batch sizes up to 20-30 are effective
+- Consider pre-processing large videos to trim them to relevant segments
+- The application automatically detects and uses CUDA if available
+- For large videos, increase sample rate (e.g., process every 5th frame) to speed up processing
+
 ## 👥 Contributing
 
 Contributions are welcome! To contribute:
@@ -140,6 +325,29 @@ Contributions are welcome! To contribute:
 5. Open a Pull Request
 
 Please ensure your code follows the project's style guidelines and includes appropriate tests.
+
+## 🧪 Code Quality
+
+Starship Analyzer maintains high code quality standards through:
+
+- **Automated Testing**: Comprehensive test suite covering core functionality
+- **Continuous Integration**: GitHub Actions workflows run tests on multiple platforms
+- **Code Coverage**: Codecov tracks test coverage to identify untested code
+- **Static Analysis**: Linting tools ensure consistent code style
+
+[![Codecov Coverage](https://codecov.io/gh/sanitaravel/starship_analyzer/branch/master/graph/badge.svg)](https://codecov.io/gh/sanitaravel/starship_analyzer)
+
+View detailed coverage reports on our [Codecov dashboard](https://codecov.io/gh/sanitaravel/starship_analyzer).
+
+Running tests locally:
+
+```bash
+# Run tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=. --cov-report=html
+```
 
 ## 📄 License
 
@@ -153,8 +361,36 @@ You may freely use and modify this software, provided you:
 
 See the [LICENSE](LICENSE) file for complete details.
 
+## 📚 Citation
+
+If you use this software in academic or research contexts, please cite it as:
+
+```text
+Koshcheev, A. (2025). Starship Analyzer: Telemetry extraction and analysis tool 
+for SpaceX Starship launches. GitHub. https://github.com/sanitaravel/starship_analyzer
+```
+
 ## 📧 Contact
 
 Alexander Koshcheev - [GitHub Profile](https://github.com/sanitaravel)
 
 Project Link: [https://github.com/sanitaravel/starship_analyzer](https://github.com/sanitaravel/starship_analyzer)
+
+## 🛡️ Data Collection Notice
+
+**System Information**: At the start of each session, Starship Analyzer collects basic system information including:
+
+- Hardware details (CPU, RAM size, GPU specifications)
+- Platform information (OS version, architecture)
+- Python and critical library versions
+- CUDA availability and version
+
+This information is stored **only in your local log files** and is used exclusively for:
+
+- Troubleshooting technical issues
+- Optimizing performance for your hardware
+- Debugging version-specific problems
+
+The application does not transmit any data to external servers or share this information with third parties. All logs remain on your local system unless you explicitly share them when seeking technical support.
+
+You can inspect the collected information in the log files located in the `logs` directory.

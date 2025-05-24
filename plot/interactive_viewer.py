@@ -43,6 +43,16 @@ class InteractivePlotViewer:
         self.root.title(self.title)
         self.root.geometry("1200x800")  # Default size
         
+        # Maximize the window
+        try:
+            # Try different approaches based on platform
+            if hasattr(self.root, 'state'):  # Windows
+                self.root.state('zoomed')
+            elif hasattr(self.root, 'attributes'):  # Linux/macOS
+                self.root.attributes('-zoomed', True)
+        except Exception as e:
+            logger.debug(f"Could not maximize window: {str(e)}")
+        
         # Create main frame
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -104,11 +114,12 @@ class InteractivePlotViewer:
         # Embed the matplotlib figure in the tkinter window
         self.canvas = FigureCanvasTkAgg(fig, master=self.frame)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        # Add the matplotlib toolbar
+        # Add the matplotlib toolbar first (at the top)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.frame)
         self.toolbar.update()
+        
+        # Then add the canvas below the toolbar
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
         logger.debug(f"Displayed figure: {title}")
