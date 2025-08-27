@@ -148,6 +148,7 @@ dmypy.json
 !**/tests/**/*.png
 !**/tests/**/*.bmp
 !**/tests/**/*.gif
+*.stats
 
 # Folders to ignore
 /results

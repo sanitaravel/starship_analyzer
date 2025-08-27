@@ -54,23 +54,6 @@ def validate_video(video_path: str) -> bool:
     if fps <= 0:
         logger.warning(f"Invalid FPS value: {fps}")
     
-    # Test reading frames from different positions
-    positions_to_test = [0, min(100, frame_count//2), max(0, frame_count-1)]
-    frame_read_success = True
-    
-    for pos in positions_to_test:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
-        ret, frame = cap.read()
-        if not ret or frame is None:
-            logger.warning(f"Cannot read frame at position {pos}/{frame_count}")
-            frame_read_success = False
-            break
-    
-    if not frame_read_success:
-        logger.error(f"Cannot reliably read frames from the video file")
-        cap.release()
-        return False
-    
     # Reset position to beginning
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     

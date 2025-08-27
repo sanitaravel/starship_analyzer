@@ -133,6 +133,21 @@ def get_video_info(video_path: str) -> dict:
     
     return info
 
+
+def get_video_fps(video_path: str) -> Optional[float]:
+    """Return the video's frames-per-second as a float, or None if it can't be read."""
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return None
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
+        if fps and fps > 0:
+            return float(fps)
+    except Exception as e:
+        logger.debug(f"Could not get video fps for {video_path}: {e}")
+    return None
+
 def try_alternative_decoder(video_path: str) -> bool:
     """
     Try to use an alternative decoder for problematic H.264 videos

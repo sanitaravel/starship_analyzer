@@ -5,6 +5,7 @@ import torch
 import os
 import threading
 from typing import Dict, Tuple, Optional
+from utils import display_image
 from utils.logger import get_logger
 
 # Initialize logger
@@ -77,7 +78,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
     try:
         # Get the EasyOCR reader safely
         ocr_reader = get_reader()
-        
+
         # Guard against empty or invalid ROIs
         if roi is None or roi.size == 0 or roi.shape[0] == 0 or roi.shape[1] == 0:
             if debug:
@@ -95,7 +96,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 logger.debug(f"Process {pid}: GPU memory - Allocated: {allocated:.2f} MB, Reserved: {reserved:.2f} MB")
         
         # Use EasyOCR to extract text with appropriate parameters for each mode
-        allowlist = '0123456789T+-:' if mode == "time" else '0123456789'
+        allowlist = '0123456789T+-:.'
         
         # Process the image with error handling
         try:
@@ -103,7 +104,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 logger.debug(f"Starting OCR with allowlist: {allowlist}")
                 
             results = ocr_reader.readtext(roi, detail=0, allowlist=allowlist)
-            text = ' '.join(results) if results else ""
+            text = ''.join(results) if results else ""
             
             if debug:
                 logger.debug(f"OCR results: {results}")
@@ -118,7 +119,7 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 logger.debug("CUDA memory cleared, reinitializing reader on CPU")
                 _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
                 results = _thread_local.reader.readtext(roi, detail=0, allowlist=allowlist)
-                text = ' '.join(results) if results else ""
+                text = ''.join(results) if results else ""
                 logger.debug(f"CPU fallback OCR results: {results}")
             else:
                 logger.error(f"RuntimeError in OCR: {str(e)}")
@@ -169,9 +170,9 @@ def extract_single_value(text: str) -> Optional[int]:
     Returns:
         Optional[int]: The extracted numeric value, or None if no value was found.
     """
-    numbers = re.findall(r'\d+', text)
+    numbers = re.findall(r'\d+(?:\.\d+)?', text)
     if numbers:
-        return int(numbers[0])
+        return float(numbers[0])
     logger.debug(f"No numeric value found in text: '{text}'")
     return None
 

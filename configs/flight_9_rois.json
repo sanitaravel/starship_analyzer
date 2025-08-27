@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "time_unit": "frames",
+  "rois": [
+    {
+      "id": "SH_SPEED",
+      "label": "Superheavy Speed",
+      "y": 970,
+      "h": 37,
+      "x": 1544,
+      "w": 114,
+      "start_time": 83301,
+      "end_time": 88329,
+      "match_to_role": "sh_speed"
+    },
+    {
+      "id": "SH_ALTITUDE",
+      "label": "Superheavy Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 83301,
+      "end_time": 88329,
+      "match_to_role": "sh_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 970,
+      "h": 37,
+      "x": 1544,
+      "w": 114,
+      "start_time": 83301,
+      "end_time": 88329,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 83301,
+      "end_time": 88329,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 88358,
+      "end_time": 95981,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 970,
+      "h": 37,
+      "x": 96,
+      "w": 114,
+      "start_time": 96040,
+      "end_time": 139471,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 96040,
+      "end_time": 139471,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 969,
+      "h": 37,
+      "x": 604,
+      "w": 114,
+      "start_time": 139551,
+      "end_time": 168469,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 969,
+      "h": 37,
+      "x": 1201,
+      "w": 114,
+      "start_time": 139551,
+      "end_time": 168469,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "TIME",
+      "label": "Time Display",
+      "y": 968,
+      "h": 44,
+      "x": 827,
+      "w": 265,
+      "start_time": 83301,
+      "end_time": 168659,
+      "match_to_role": "time"
+    }
+  ]
+}

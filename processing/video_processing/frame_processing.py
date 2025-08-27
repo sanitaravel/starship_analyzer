@@ -1,12 +1,14 @@
 """
 Functions for processing individual video frames.
 """
+import os
 import cv2
 import random
 import numpy as np
 from typing import Dict, Optional
 from utils.logger import get_logger
 from ocr import extract_data
+from ocr.roi_manager import ROIManager
 
 logger = get_logger(__name__)
 
@@ -27,7 +29,7 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
     """
     try:
         superheavy_data, starship_data, time_data = extract_data(
-            frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met)
+            frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met, frame_idx=frame_number)
         frame_result = {
             "frame_number": frame_number,
             "superheavy": superheavy_data,
@@ -63,7 +65,7 @@ def process_single_frame(frame_idx, frame, display_rois=False, debug=False, show
     """
     try:
         superheavy_data, starship_data, time_data = extract_data(
-            frame, display_rois=display_rois, debug=debug)
+            frame, display_rois=display_rois, debug=debug, frame_idx=frame_idx)
         frame_result = {
             "frame_number": frame_idx,
             "superheavy": superheavy_data,
@@ -117,8 +119,8 @@ def process_video_frame(video_path: str, display_rois: bool = False, debug: bool
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         # Calculate frame range based on start and end times
-        start_frame = int(max(0, start_time * fps))
-        end_frame = int(frame_count - 1) if end_time < 0 else int(min(frame_count - 1, end_time * fps))
+        start_frame = start_time
+        end_frame = int(frame_count - 1) if end_time < 0 else int(min(frame_count - 1, end_time))
         
         if start_frame >= end_frame:
             logger.error(f"Invalid time range: start_frame ({start_frame}) >= end_frame ({end_frame})")
