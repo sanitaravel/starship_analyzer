@@ -15,7 +15,6 @@ logger = get_logger(__name__)
 
 def iterate_through_frames(video_path: str, launch_number: int, display_rois: bool = False, debug: bool = False, 
                           max_frames: Optional[int] = None, batch_size: int = 10, sample_rate: int = 1,
-                          start_time: Optional[float] = None, end_time: Optional[float] = None,
                           start_frame: Optional[int] = None, end_frame: Optional[int] = None) -> None:
     """
     Iterate through all frames in a video and extract data.
@@ -28,8 +27,6 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
         max_frames (int, optional): The maximum number of frames to process. Defaults to None.
         batch_size (int): The number of frames to process in each batch.
         sample_rate (int): The sampling rate (process every Nth frame). Defaults to 1.
-        start_time (float, optional): Start time in seconds. Defaults to None.
-        end_time (float, optional): End time in seconds. Defaults to None.
         start_frame (int, optional): Start frame number (overrides start_time if provided). Defaults to None.
         end_frame (int, optional): End frame number (overrides end_time if provided). Defaults to None.
     """
@@ -58,18 +55,14 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
-    # Determine start and end frames
+    # Determine start and end frames (time-based selection was removed; callers should provide frames)
     if start_frame is not None:
-        start_pos = max(0, min(start_frame, total_frame_count-1))
-    elif start_time is not None:
-        start_pos = max(0, min(int(start_time * fps), total_frame_count-1))
+        start_pos = max(0, min(start_frame, total_frame_count - 1))
     else:
         start_pos = 0
-        
+
     if end_frame is not None:
         end_pos = max(start_pos, min(end_frame, total_frame_count))
-    elif end_time is not None:
-        end_pos = max(start_pos, min(int(end_time * fps), total_frame_count))
     else:
         end_pos = total_frame_count
     
@@ -84,8 +77,6 @@ def iterate_through_frames(video_path: str, launch_number: int, display_rois: bo
     
     if debug:
         logger.debug(f"Video processing borders: start_frame={start_pos}, end_frame={end_pos}")
-        if start_time is not None or end_time is not None:
-            logger.debug(f"Time borders: start_time={start_time}s, end_time={end_time}s")
         
         # Get additional video properties for debugging
         cap = cv2.VideoCapture(video_path)

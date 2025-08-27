@@ -7,6 +7,8 @@ from utils.terminal import clear_screen
 from utils.validators import validate_number, validate_positive_number
 from utils.video_utils import get_video_files_from_flight_recordings, display_video_info
 from processing import process_video_frame, iterate_through_frames
+from ocr.roi_manager import set_default_manager_config, get_default_manager
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -57,6 +59,9 @@ def process_random_frame():
     
     logger.debug("Starting random frame processing")
     
+    # Allow user to choose ROI config before processing
+    select_roi_config_menu()
+
     # First, get the video path
     video_question = [
         inquirer.List(
@@ -86,10 +91,19 @@ def process_random_frame():
     
     start_time = int(answers['start_time']) if answers['start_time'] else 0
     end_time = int(answers['end_time']) if answers['end_time'] else -1
-    
-    logger.debug(f"Processing random frame from {answers['video_path']} with start_time={start_time}, end_time={end_time}")
+
+    # Convert seconds to frames using video FPS
+    from utils.video_utils import get_video_fps
+    fps = get_video_fps(answers['video_path'])
+    start_frame = None
+    end_frame = None
+    if fps:
+        start_frame = int(start_time * fps)
+        end_frame = -1 if end_time == -1 else int(end_time * fps)
+
+    logger.debug(f"Processing random frame from {answers['video_path']} with start_frame={start_frame}, end_frame={end_frame}")
     process_video_frame(
-        answers['video_path'], answers['display_rois'], answers['debug'] or DEBUG_MODE, start_time, end_time)
+        answers['video_path'], answers['display_rois'], answers['debug'] or DEBUG_MODE, start_frame, end_frame)
     input("\nPress Enter to continue...")
     clear_screen()
     return True
@@ -147,7 +161,7 @@ def get_time_based_borders():
     ]
     time_answers = inquirer.prompt(time_questions)
     
-    start_time = float(time_answers['start_time']) if time_answers['start_time'] else 0
+    start_time = float(time_answers['start_time']) if time_answers['start_time'] else None
     end_time = float(time_answers['end_time']) if time_answers['end_time'] else None
     
     return start_time, end_time
@@ -173,21 +187,37 @@ def get_frame_based_borders():
     
     return start_frame, end_frame
 
+# ...process_video_with_parameters removed; its logic is now in process_complete_video
+
 def process_video_with_parameters(video_path, launch_number, batch_size, sample_rate, 
                                  start_time=None, end_time=None, start_frame=None, end_frame=None):
-    """Process the video with the provided parameters."""
+    """Compatibility wrapper: convert time borders to frames and call iterate_through_frames."""
     from main import DEBUG_MODE  # Import here to avoid circular imports
-    
+
     logger.debug(f"Processing complete video {video_path} with launch_number={launch_number}, "
                 f"batch_size={batch_size}, sample_rate={sample_rate}")
     logger.debug(f"Borders: start_time={start_time}, end_time={end_time}, "
                 f"start_frame={start_frame}, end_frame={end_frame}")
-    
+
+    # If time-based borders were provided, convert them to frame numbers using video FPS
+    converted_start_frame = start_frame
+    converted_end_frame = end_frame
+    if start_frame is None and start_time is not None:
+        # Need to get fps to convert time to frames
+        from utils.video_utils import get_video_fps
+        fps = get_video_fps(video_path)
+        if fps:
+            converted_start_frame = int(start_time * fps)
+    if end_frame is None and end_time is not None:
+        from utils.video_utils import get_video_fps
+        fps = get_video_fps(video_path)
+        if fps:
+            converted_end_frame = int(end_time * fps)
+
     iterate_through_frames(
         video_path, int(launch_number), debug=DEBUG_MODE, 
         batch_size=batch_size, sample_rate=sample_rate,
-        start_time=start_time, end_time=end_time, 
-        start_frame=start_frame, end_frame=end_frame)
+        start_frame=converted_start_frame, end_frame=converted_end_frame)
 
 def process_complete_video():
     """Handle the process complete video menu option."""
@@ -203,6 +233,9 @@ def process_complete_video():
     # Display video information
     display_video_info(video_path)
     
+    # Allow user to choose ROI config before processing
+    select_roi_config_menu()
+
     # Get processing parameters
     answers = get_processing_parameters()
     
@@ -217,15 +250,110 @@ def process_complete_video():
     
     # Get border information based on user's choice
     if answers['border_type'] == 'Time-based (seconds)':
+        # Get times from user and convert to frame indices immediately using video FPS
         start_time, end_time = get_time_based_borders()
+        try:
+            from utils.video_utils import get_video_fps
+            fps = get_video_fps(video_path)
+            if fps:
+                # start_time is always numeric (default 0); end_time may be None meaning until end
+                start_frame = int(start_time * fps) if start_time is not None else None
+                end_frame = None if end_time is None else int(end_time * fps)
+            else:
+                logger.warning('Could not determine video FPS; time-based borders will be handled later')
+        except Exception:
+            logger.exception('Error converting time borders to frames')
     elif answers['border_type'] == 'Frame-based':
         start_frame, end_frame = get_frame_based_borders()
     
-    process_video_with_parameters(
-        video_path, answers['launch_number'], batch_size, sample_rate,
-        start_time, end_time, start_frame, end_frame
+    # After selecting ROI config, read its time_unit and per-ROI spans to set sensible defaults
+    try:
+        manager = get_default_manager()
+        config_time_unit = manager.time_unit
+        rois_list = manager.list_rois()
+        # rois_list contains start_frame/end_frame because ROIManager parses start_time into start_frame
+        starts = [r.get('start_frame') for r in rois_list if r.get('start_frame') is not None]
+        ends = [r.get('end_frame') for r in rois_list if r.get('end_frame') is not None]
+        # If the config uses seconds, those values in the json were seconds and ROIManager converted them to frames
+        # but to be safe, if time_unit == 'seconds' convert using video fps
+        config_start_frame = None
+        config_end_frame = None
+        if starts:
+            config_start_frame = min(starts)
+        if ends:
+            config_end_frame = max(ends)
+        # If config time unit is seconds, convert seconds->frames using video fps
+        if config_time_unit == 'seconds':
+            from utils.video_utils import get_video_fps
+            fps = get_video_fps(video_path)
+            if fps:
+                if config_start_frame is not None:
+                    config_start_frame = int(config_start_frame * fps)
+                if config_end_frame is not None:
+                    config_end_frame = int(config_end_frame * fps)
+        logger.debug(f"Loaded ROI config: time_unit={config_time_unit}, start_frame={config_start_frame}, end_frame={config_end_frame}")
+        # Apply defaults only when user didn't supply any borders
+        if start_frame is None and config_start_frame is not None:
+            start_frame = config_start_frame
+        if end_frame is None and config_end_frame is not None:
+            end_frame = config_end_frame
+    except Exception:
+        logger.exception("Failed to read ROI manager defaults after selecting config")
+
+    # Inline conversion from time to frames for user-specified time borders
+    converted_start_frame = start_frame
+    converted_end_frame = end_frame
+    if start_frame is None and start_time is not None:
+        from utils.video_utils import get_video_fps
+        fps = get_video_fps(video_path)
+        if fps:
+            converted_start_frame = int(start_time * fps)
+    if end_frame is None and end_time is not None:
+        from utils.video_utils import get_video_fps
+        fps = get_video_fps(video_path)
+        if fps:
+            converted_end_frame = int(end_time * fps)
+
+    logger.info(f"Using frames: {converted_start_frame} - {converted_end_frame}")
+    iterate_through_frames(
+        video_path, int(answers['launch_number']), debug=DEBUG_MODE,
+        batch_size=batch_size, sample_rate=sample_rate,
+        start_frame=converted_start_frame, end_frame=converted_end_frame
     )
     
     input("\nPress Enter to continue...")
     clear_screen()
     return True
+
+
+def select_roi_config_menu():
+    """Prompt the user to choose an ROI config from the `configs` folder and set it as default.
+
+    If the user cancels or no configs are found, nothing changes.
+    """
+    try:
+        configs_dir = Path('configs')
+        if not configs_dir.exists():
+            return None
+
+        json_files = sorted([p.name for p in configs_dir.glob('*.json')])
+        if not json_files:
+            return None
+
+        choices = json_files + ['Use current/default']
+        question = [
+            inquirer.List('config', message='Select ROI config (affects subsequent processing):', choices=choices)
+        ]
+        ans = inquirer.prompt(question)
+        if not ans:
+            return None
+        if ans['config'] == 'Use current/default':
+            return None
+
+        selected = configs_dir / ans['config']
+        # Set global default manager to use this config
+        set_default_manager_config(str(selected))
+        return str(selected)
+    except Exception:
+        logger.exception('Failed to set ROI config from menu')
+        return None

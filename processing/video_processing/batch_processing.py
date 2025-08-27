@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 from utils.logger import get_logger
 from .frame_processing import process_frame
+from ocr import roi_manager as roi_manager
 
 logger = get_logger(__name__)
 
@@ -131,7 +132,23 @@ def process_video_frames(batches: List[List[int]], video_path: str, display_rois
     progress_counter = manager.Value('i', 0)
     
     # Process batches with better error handling
-    with ProcessPoolExecutor(max_workers=num_cores) as executor:
+    # Try to propagate the selected ROI config to worker processes so they
+    # use the same ROIManager as the main process. We pass the config path
+    # as an init arg to the ProcessPoolExecutor initializer which will call
+    # `roi_manager.set_default_manager_config(config_path)` in each worker.
+    try:
+        default_mgr = roi_manager.get_default_manager()
+        init_config_path = str(default_mgr.config_path) if default_mgr and default_mgr.config_path else None
+    except Exception:
+        init_config_path = None
+
+    if init_config_path:
+        logger.debug(f"Initializing worker processes with ROI config: {init_config_path}")
+        executor_kwargs = {"max_workers": num_cores, "initializer": roi_manager.set_default_manager_config, "initargs": (init_config_path,)}
+    else:
+        executor_kwargs = {"max_workers": num_cores}
+
+    with ProcessPoolExecutor(**executor_kwargs) as executor:
         futures = []
         
         # Submit all batch jobs with the shared counter

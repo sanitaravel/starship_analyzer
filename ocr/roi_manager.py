@@ -105,3 +105,19 @@ def get_default_manager() -> ROIManager:
     if _default_manager is None:
         _default_manager = ROIManager()
     return _default_manager
+
+
+def set_default_manager_config(config_path: str) -> ROIManager:
+    """Replace the global default ROIManager with one using the provided config path.
+
+    Returns the new default manager instance.
+    """
+    global _default_manager
+    try:
+        _default_manager = ROIManager(config_path)
+        logger.info(f"Default ROI manager set to config: {config_path}")
+    except Exception as e:
+        logger.exception(f"Failed to set default ROI manager to {config_path}: {e}")
+        # Fall back to an empty manager to avoid crash
+        _default_manager = ROIManager()
+    return _default_manager

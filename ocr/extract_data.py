@@ -282,6 +282,31 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
     ss_altitude_roi = _get_roi_image("ss_altitude")
     time_roi = _get_roi_image("time")
 
+    # Extract time first. If there is no time data we can skip heavy processing for this frame.
+    if debug:
+        logger.debug("Attempting to extract time before other data to decide whether to process frame")
+
+    try:
+        # If there is no time ROI, treat as missing time and skip
+        if time_roi is None:
+            if debug:
+                logger.debug("Time ROI not available; skipping frame processing")
+            time_data = {}
+        else:
+            time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
+    except Exception as e:
+        logger.error(f"Error extracting time data early: {str(e)}")
+        if debug:
+            logger.debug(traceback.format_exc())
+        time_data = {}
+
+    # Early exit: if no time was detected, don't process this frame further
+    if not time_data:
+        if debug:
+            logger.debug("No time detected in frame; skipping further extraction (engines/fuel/vehicle data)")
+        # Return empty vehicle dicts and the (empty) time_data to keep callsites safe
+        return {}, {}, time_data
+
     # Extract data for Superheavy and Starship
     superheavy_data = extract_superheavy_data(sh_speed_roi, sh_altitude_roi, display_rois, debug)
     starship_data = extract_starship_data(ss_speed_roi, ss_altitude_roi, display_rois, debug)
@@ -305,8 +330,7 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
         if not ss_altitude:
             starship_data["altitude"] = sh_altitude
 
-    # Extract time data
-    time_data = extract_time_data(time_roi, display_rois, debug, zero_time_met)
+    # time_data was already extracted earlier and ensured to be present
     
     # Extract fuel levels
     if debug:

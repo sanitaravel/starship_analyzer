@@ -1,7 +1,13 @@
 """
 Main entry point for the Starship Analyzer application.
 """
+import argparse
+import io
 import logging
+import cProfile
+import pstats
+from typing import Optional
+
 from utils.logger import start_new_session, get_logger, set_global_log_level
 from utils.terminal import clear_screen
 from ui import display_menu
@@ -59,5 +65,56 @@ def main() -> None:
     finally:
         logger.info("Application shutdown complete")
 
+def _run_with_cprofile(output_path: str, print_top: bool, top_n: int = 50) -> None:
+    """Run the main() under cProfile and save stats to output_path.
+
+    If print_top is True, print the top_n functions by cumulative time to stdout.
+    """
+    profiler = cProfile.Profile()
+    try:
+        profiler.enable()
+        main()
+    finally:
+        profiler.disable()
+        try:
+            profiler.dump_stats(output_path)
+            print(f"Profile saved to: {output_path}")
+        except Exception as e:
+            print(f"Failed to write profile to {output_path}: {e}")
+
+        if print_top:
+            s = io.StringIO()
+            ps = pstats.Stats(profiler, stream=s).sort_stats("cumtime")
+            ps.print_stats(top_n)
+            print(s.getvalue())
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Starship Analyzer")
+    parser.add_argument(
+        "--profile",
+        "-p",
+        nargs="?",
+        const="profile.stats",
+        default=None,
+        help="Enable cProfile and write stats to the given file (default: profile.stats if flag provided without path)",
+    )
+    parser.add_argument(
+        "--profile-print",
+        action="store_true",
+        help="If set when profiling, print top functions to stdout after run",
+    )
+    parser.add_argument(
+        "--profile-top",
+        type=int,
+        default=50,
+        help="Number of top functions to print when --profile-print is used (default: 50)",
+    )
+
+    args = parser.parse_args()
+
+    if args.profile:
+        out = args.profile if isinstance(args.profile, str) and args.profile != "profile.stats" else "profile.stats"
+        _run_with_cprofile(out, args.profile_print, args.profile_top)
+    else:
+        main()

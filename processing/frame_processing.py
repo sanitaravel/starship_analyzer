@@ -61,7 +61,7 @@ def process_image(image_path: str, display_rois: bool, debug: bool) -> None:
         logger.debug(traceback.format_exc())
 
 
-def process_video_frame(video_path: str, display_rois: bool, debug: bool, start_time: Optional[int], end_time: Optional[int]) -> None:
+def process_video_frame(video_path: str, display_rois: bool, debug: bool, start_frame: Optional[int], end_frame: Optional[int]) -> None:
     """
     Extract data from a random frame in a video within a specified timeframe.
 
@@ -69,11 +69,11 @@ def process_video_frame(video_path: str, display_rois: bool, debug: bool, start_
         video_path (str): The path to the video file.
         display_rois (bool): Whether to display the ROIs.
         debug (bool): Whether to enable debug prints.
-        start_time (int, optional): The start time in seconds for the timeframe.
-        end_time (int, optional): The end time in seconds for the timeframe.
+        start_frame (int, optional): The start frame index for the timeframe.
+            end_frame (int, optional): The end frame index for the timeframe. Use -1 to indicate until end.
     """
     logger.info(f"Processing random frame from {video_path}")
-    logger.debug(f"Parameters: display_rois={display_rois}, debug={debug}, start_time={start_time}, end_time={end_time}")
+    logger.debug(f"Parameters: display_rois={display_rois}, debug={debug}, start_frame={start_frame}, end_frame={end_frame}")
     
     try:
         cap = cv2.VideoCapture(video_path)
@@ -83,22 +83,19 @@ def process_video_frame(video_path: str, display_rois: bool, debug: bool, start_
             
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
-        
+
         logger.debug(f"Video properties: {frame_count} frames, {fps} fps")
         logger.debug(f"Video resolution: {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}")
 
-        if start_time is not None:
-            start_frame = int(start_time * fps)
-        else:
+        # Interpret provided frame bounds; if None, set defaults
+        if start_frame is None:
             start_frame = 0
 
-        if end_time != -1:
-            end_frame = int(end_time * fps)
-        else:
+        if end_frame is None or end_frame == -1:
             end_frame = frame_count - 1
 
         if start_frame >= end_frame:
-            logger.error(f"Start time must be less than end time (start={start_frame}, end={end_frame})")
+            logger.error(f"Start frame must be less than end frame (start={start_frame}, end={end_frame})")
             cap.release()
             return
 
