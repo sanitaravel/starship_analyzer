@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "time_unit": "frames",
+  "rois": [
+    {
+      "id": "SH_SPEED",
+      "label": "Superheavy Speed",
+      "y": 970,
+      "h": 37,
+      "x": 1544,
+      "w": 114,
+      "start_time": 89908,
+      "end_time": 95017,
+      "match_to_role": "sh_speed"
+    },
+    {
+      "id": "SH_ALTITUDE",
+      "label": "Superheavy Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 89908,
+      "end_time": 94729,
+      "match_to_role": "sh_altitude"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 89908,
+      "end_time": 94729,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 970,
+      "h": 37,
+      "x": 1544,
+      "w": 114,
+      "start_time": 89908,
+      "end_time": 102353,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SH_SPEED",
+      "label": "Superheavy Speed",
+      "y": 970,
+      "h": 37,
+      "x": 96,
+      "w": 114,
+      "start_time": 96854,
+      "end_time": 101143,
+      "match_to_role": "sh_speed"
+    },
+    {
+      "id": "SH_ALTITUDE",
+      "label": "Superheavy Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 263,
+      "w": 114,
+      "start_time": 96854,
+      "end_time": null,
+      "match_to_role": "sh_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 970,
+      "h": 37,
+      "x": 96,
+      "w": 114,
+      "start_time": 102381,
+      "end_time": 210309,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 263,
+      "w": 114,
+      "start_time": 102381,
+      "end_time": 210309,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "TIME",
+      "label": "Time Display",
+      "y": 968,
+      "h": 44,
+      "x": 827,
+      "w": 265,
+      "start_time": 89908,
+      "end_time": 210320,
+      "match_to_role": "time"
+    }
+  ]
+}
