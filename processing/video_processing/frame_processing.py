@@ -27,7 +27,7 @@ def process_frame(frame_number: int, frame: np.ndarray, display_rois: bool, debu
     """
     try:
         superheavy_data, starship_data, time_data = extract_data(
-            frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met)
+            frame, display_rois=display_rois, debug=debug, zero_time_met=zero_time_met, frame_idx=frame_number)
         frame_result = {
             "frame_number": frame_number,
             "superheavy": superheavy_data,
@@ -63,7 +63,7 @@ def process_single_frame(frame_idx, frame, display_rois=False, debug=False, show
     """
     try:
         superheavy_data, starship_data, time_data = extract_data(
-            frame, display_rois=display_rois, debug=debug)
+            frame, display_rois=display_rois, debug=debug, frame_idx=frame_idx)
         frame_result = {
             "frame_number": frame_idx,
             "superheavy": superheavy_data,

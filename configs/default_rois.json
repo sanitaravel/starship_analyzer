@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "time_unit": "frames",
+  "rois": [
+    {
+      "id": "SH_SPEED",
+      "label": "Superheavy Speed",
+      "y": 913,
+      "h": 25,
+      "x": 359,
+      "w": 83,
+      "start_time": null,
+      "end_time": null,
+      "match_to_role": "sh_speed"
+    },
+    {
+      "id": "SH_ALTITUDE",
+      "label": "Superheavy Altitude",
+      "y": 948,
+      "h": 25,
+      "x": 392,
+      "w": 50,
+      "start_time": null,
+      "end_time": null,
+      "match_to_role": "sh_altitude"
+    },
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "y": 913,
+      "h": 25,
+      "x": 1539,
+      "w": 83,
+      "start_time": null,
+      "end_time": null,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 948,
+      "h": 25,
+      "x": 1572,
+      "w": 50,
+      "start_time": null,
+      "end_time": null,
+      "match_to_role": "ss_altitude"
+    },
+    {
+      "id": "TIME",
+      "label": "Time Display",
+      "y": 940,
+      "h": 44,
+      "x": 860,
+      "w": 197,
+      "start_time": null,
+      "end_time": null,
+      "match_to_role": "time"
+    }
+  ]
+}

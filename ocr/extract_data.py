@@ -1,27 +1,20 @@
 import numpy as np
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from utils import display_image
 from .ocr import extract_values_from_roi
 from .engine_detection import detect_engine_status
 from .fuel_level_extraction import extract_fuel_levels
 from utils.logger import get_logger
+from .roi_manager import get_default_manager, ROIManager
 import traceback  # Import at the top level instead of in exception handler
 
 # Initialize logger
 logger = get_logger(__name__)
 
-# ROI coordinates and dimensions as constants (y_start, height, x_start, width)
-SH_SPEED_ROI = (913, 25, 359, 83)
-SH_ALT_ROI = (948, 25, 392, 50)
-SS_SPEED_ROI = (913, 25, 1539, 83)
-SS_ALT_ROI = (948, 25, 1572, 50)
-TIME_ROI = (940, 44, 860, 197)
+# This module is now fully config-driven. ROI coordinates and activation windows
+# are provided by `ocr.roi_manager.ROIManager` via `get_default_manager()`.
 
-# Calculate required dimensions
-REQUIRED_HEIGHT = max(y + h for y, h, _, _ in (SH_SPEED_ROI, SH_ALT_ROI, SS_SPEED_ROI, SS_ALT_ROI, TIME_ROI))
-REQUIRED_WIDTH = max(x + w for _, _, x, w in (SH_SPEED_ROI, SH_ALT_ROI, SS_SPEED_ROI, SS_ALT_ROI, TIME_ROI))
-
-def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def preprocess_image(image: np.ndarray, display_rois: bool = False, roi_manager: Optional[ROIManager] = None, frame_idx: Optional[int] = None) -> Dict[str, Optional[np.ndarray]]:
     """
     Preprocess the image to extract ROIs for Superheavy Speed, Superheavy Altitude, Starship Speed, Starship Altitude, and Time.
 
@@ -32,59 +25,71 @@ def preprocess_image(image: np.ndarray, display_rois: bool = False) -> Tuple[np.
     Returns:
         tuple: A tuple containing the ROIs for Superheavy Speed, Superheavy Altitude, Starship Speed, Starship Altitude, and Time.
     """
-    # Helper function to create empty ROIs
-    def create_empty_rois():
-        empty_roi = np.zeros((1, 1, 3), dtype=np.uint8)
-        return empty_roi, empty_roi, empty_roi, empty_roi, empty_roi
+    # Helper: single empty ROI -> return None so OCR can early-exit
+    def empty_roi():
+        return None
 
     # Input validation
     if image is None:
         logger.error("Input image is None")
-        return create_empty_rois()
+        return {}
     
     logger.debug(f"Preprocessing image of shape {image.shape}")
-    
-    if image.shape[0] < REQUIRED_HEIGHT or image.shape[1] < REQUIRED_WIDTH:
-        logger.error(f"Image dimensions ({image.shape[0]}x{image.shape[1]}) are too small for ROI extraction. " 
-                     f"Minimum required: {REQUIRED_HEIGHT}x{REQUIRED_WIDTH}")
-        return create_empty_rois()
+
+    # Decide which ROI definitions to use; require ROIManager (default loaded if None)
+    use_manager = roi_manager
+    if use_manager is None:
+        try:
+            use_manager = get_default_manager()
+        except Exception:
+            use_manager = None
+
+    if use_manager is None:
+        logger.error("ROI manager not available; cannot perform config-driven ROI slicing")
+        return {}
     
     try:
-        # Extract ROIs (y:y+h, x:x+w format)
-        sh_speed_roi = image[SH_SPEED_ROI[0]:SH_SPEED_ROI[0]+SH_SPEED_ROI[1], 
-                            SH_SPEED_ROI[2]:SH_SPEED_ROI[2]+SH_SPEED_ROI[3]]
-        
-        sh_altitude_roi = image[SH_ALT_ROI[0]:SH_ALT_ROI[0]+SH_ALT_ROI[1], 
-                               SH_ALT_ROI[2]:SH_ALT_ROI[2]+SH_ALT_ROI[3]]
-        
-        ss_speed_roi = image[SS_SPEED_ROI[0]:SS_SPEED_ROI[0]+SS_SPEED_ROI[1], 
-                            SS_SPEED_ROI[2]:SS_SPEED_ROI[2]+SS_SPEED_ROI[3]]
-        
-        ss_altitude_roi = image[SS_ALT_ROI[0]:SS_ALT_ROI[0]+SS_ALT_ROI[1], 
-                               SS_ALT_ROI[2]:SS_ALT_ROI[2]+SS_ALT_ROI[3]]
-        
-        time_roi = image[TIME_ROI[0]:TIME_ROI[0]+TIME_ROI[1], 
-                        TIME_ROI[2]:TIME_ROI[2]+TIME_ROI[3]]
+        # Helper: safe slice function
+        def slice_roi(img, y, h, x, w):
+            ih, iw = img.shape[0], img.shape[1]
+            y0 = max(0, int(y))
+            x0 = max(0, int(x))
+            y1 = min(ih, int(y + h))
+            x1 = min(iw, int(x + w))
+            if y0 >= y1 or x0 >= x1:
+                return None
+            return img[y0:y1, x0:x1]
+
+        # Build mapping roi_id -> cropped image for all active ROIs
+        rois_map: Dict[str, Optional[np.ndarray]] = {}
+        active = use_manager.get_active_rois(frame_idx)
+
+        for roi in active:
+            try:
+                rois_map[roi.id] = slice_roi(image, roi.y, roi.h, roi.x, roi.w)
+            except Exception:
+                logger.exception(f"Failed to slice ROI {roi.id}; inserting empty ROI")
+                rois_map[roi.id] = None
         
         # Debug logging
-        logger.debug(f"ROI dimensions - SH Speed: {sh_speed_roi.shape}, SH Alt: {sh_altitude_roi.shape}, " +
-                    f"SS Speed: {ss_speed_roi.shape}, SS Alt: {ss_altitude_roi.shape}, Time: {time_roi.shape}")
-
-        # Display ROIs if requested
         if display_rois:
-            logger.debug("Displaying ROIs for visual inspection")
-            display_image(sh_speed_roi, "Superheavy Speed ROI")
-            display_image(sh_altitude_roi, "Superheavy Altitude ROI")
-            display_image(ss_speed_roi, "Starship Speed ROI")
-            display_image(ss_altitude_roi, "Starship Altitude ROI")
-            display_image(time_roi, "Time ROI")
+            logger.debug("Displaying ROI slices for visual inspection")
+            for rid, img in rois_map.items():
+                title = rid
+                try:
+                    roi_obj = next((r for r in active if r.id == rid), None)
+                    if roi_obj and roi_obj.match_to_role:
+                        title = f"{rid} ({roi_obj.match_to_role})"
+                except Exception:
+                    pass
+                display_image(img, title)
+
+        return rois_map
     
     except Exception as e:
         logger.error(f"Error extracting ROIs: {str(e)}")
         logger.debug(f"Image shape: {image.shape if image is not None else 'None'}")
-        return create_empty_rois()
-
-    return sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi
+        return {}
 
 
 def extract_superheavy_data(sh_speed_roi: np.ndarray, sh_altitude_roi: np.ndarray, display_rois: bool, debug: bool) -> Dict:
@@ -228,7 +233,7 @@ def extract_time_data(time_roi: np.ndarray, display_rois: bool, debug: bool, zer
         return {}
 
 
-def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = False, zero_time_met: bool = False) -> Tuple[Dict, Dict, Dict]:
+def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = False, zero_time_met: bool = False, roi_manager: Optional[ROIManager] = None, frame_idx: Optional[int] = None) -> Tuple[Dict, Dict, Dict]:
     """
     Extract data from an image.
 
@@ -244,9 +249,38 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
     if debug:
         logger.debug("Starting data extraction from image")
     
-    # Preprocess the image to get ROIs
-    sh_speed_roi, sh_altitude_roi, ss_speed_roi, ss_altitude_roi, time_roi = preprocess_image(
-        image, display_rois)
+    # Preprocess the image to get ROIs mapping (roi_id -> image)
+    rois_map = preprocess_image(image, display_rois, roi_manager=roi_manager, frame_idx=frame_idx)
+
+    # Helper to fetch ROI image by role using roi_manager mapping; return empty ROI when missing
+    def _get_roi_image(role: str) -> Optional[np.ndarray]:
+        mgr = roi_manager
+        if mgr is None:
+            try:
+                mgr = get_default_manager()
+            except Exception:
+                mgr = None
+
+        roi_obj = None
+        if mgr is not None:
+            try:
+                roi_obj = mgr.get_roi_for_role(role, frame_idx)
+            except Exception:
+                roi_obj = None
+
+        if roi_obj is not None:
+            img = rois_map.get(roi_obj.id)
+            # may be None
+            return img
+
+        # missing role -> None
+        return None
+
+    sh_speed_roi = _get_roi_image("sh_speed")
+    sh_altitude_roi = _get_roi_image("sh_altitude")
+    ss_speed_roi = _get_roi_image("ss_speed")
+    ss_altitude_roi = _get_roi_image("ss_altitude")
+    time_roi = _get_roi_image("time")
 
     # Extract data for Superheavy and Starship
     superheavy_data = extract_superheavy_data(sh_speed_roi, sh_altitude_roi, display_rois, debug)
