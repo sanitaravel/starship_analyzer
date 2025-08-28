@@ -96,8 +96,8 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
                 logger.debug(f"Process {pid}: GPU memory - Allocated: {allocated:.2f} MB, Reserved: {reserved:.2f} MB")
         
         # Use EasyOCR to extract text with appropriate parameters for each mode
-        allowlist = '0123456789T+-:.'
-        
+        allowlist = '0123456789T+-:' if mode == "time" else '0123456789.'
+                
         # Process the image with error handling
         try:
             if debug:

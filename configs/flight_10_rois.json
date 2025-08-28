@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "time_unit": "frames",
   "rois": [
     {
@@ -23,17 +23,6 @@
       "start_time": 89908,
       "end_time": 94729,
       "match_to_role": "sh_altitude"
-    },
-    {
-      "id": "SS_ALTITUDE",
-      "label": "Starship Altitude",
-      "y": 970,
-      "h": 37,
-      "x": 1707,
-      "w": 114,
-      "start_time": 89908,
-      "end_time": 94729,
-      "match_to_role": "ss_altitude"
     },
     {
       "id": "SS_SPEED",

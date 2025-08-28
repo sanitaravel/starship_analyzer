@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "time_unit": "frames",
   "rois": [
     {
@@ -82,9 +82,9 @@
     {
       "id": "SS_SPEED",
       "label": "Starship Speed",
-      "y": 969,
+      "y": 970,
       "h": 37,
-      "x": 604,
+      "x": 263,
       "w": 114,
       "start_time": 139551,
       "end_time": 168469,
