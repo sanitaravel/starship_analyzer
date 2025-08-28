@@ -1,396 +1,195 @@
-# 🚀 Starship Analyzer
+# Starship Analyzer
 
-![Starship Launch](https://img.shields.io/badge/SpaceX-Starship%20Analysis-blue?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
-![License](https://img.shields.io/badge/License-MIT%20with%20Attribution-green?style=for-the-badge)
-![OCR](https://img.shields.io/badge/OCR-EasyOCR-orange?style=for-the-badge)
-![Computer Vision](https://img.shields.io/badge/CV-OpenCV-red?style=for-the-badge&logo=opencv)
+A small toolkit to analyze Starship flight recordings and extract telemetry and events from video.
 
-A powerful Python toolkit for extracting, analyzing, and visualizing telemetry data from SpaceX Starship launch webcasts using computer vision and optical character recognition. This tool helps engineers, space enthusiasts, and analysts track performance metrics and compare data across different Starship test flights.
+This repository contains video-processing utilities, OCR-based telemetry extraction, plotting, and helper scripts used to analyze flight recordings (stored under `flight_recordings/`). It is intended for local analysis and lightweight automation (for example, publishing notable events).
 
-## Table of Contents
+## Key capabilities
 
-- [🚀 Starship Analyzer](#-starship-analyzer)
-  - [Table of Contents](#table-of-contents)
-  - [📊 What is Starship Analyzer?](#-what-is-starship-analyzer)
-  - [✨ Key Features](#-key-features)
-  - [🛠️ Installation](#️-installation)
-    - [Prerequisites](#prerequisites)
-    - [Quick Start](#quick-start)
-    - [Manual Installation](#manual-installation)
-    - [Updating the Application](#updating-the-application)
-    - [Key Dependencies](#key-dependencies)
-  - [📋 Usage Guide](#-usage-guide)
-    - [Getting Started](#getting-started)
-    - [Workflow](#workflow)
-    - [Logging System](#logging-system)
-    - [Debug Mode](#debug-mode)
-    - [Available Commands](#available-commands)
-  - [🔍 How It Works](#-how-it-works)
-  - [📂 Project Structure](#-project-structure)
-  - [📊 Example Outputs](#-example-outputs)
-  - [🚀 Performance Tips](#-performance-tips)
-  - [👥 Contributing](#-contributing)
-  - [🧪 Code Quality](#-code-quality)
-  - [📄 License](#-license)
-  - [📚 Citation](#-citation)
-  - [📧 Contact](#-contact)
-  - [🛡️ Data Collection Notice](#️-data-collection-notice)
+- Extract text overlays and telemetry from videos using OCR (see `ocr/`).
+- Process frames and regions-of-interest (ROIs) defined in `configs/`.
+- Produce plots and analysis artifacts into `plot/` and `results/`.
+- Helper scripts for downloading, preprocessing and broadcasting results (see `download/` and `twitter_broadcast.test_script.py`).
 
-## 📊 What is Starship Analyzer?
+## Repository layout (important files/folders)
 
-Starship Analyzer automatically extracts critical flight data from SpaceX's Starship launch webcasts, including:
+- `main.py` — primary entry point for running analyses.
+- `download/` — video download and preparation helpers.
+- `ocr/` — OCR helpers and models integration.
+- `configs/` — ROI and configuration JSON files (e.g. `default_rois.json`).
+- `flight_recordings/` — sample and raw MP4 recordings used for analysis.
+- `plot/`, `results/` — output directories for plots and results.
+- `logs/` — runtime log files created when running the tools.
+- `tests/` — unit and integration tests.
+- `requirements.txt` — Python dependencies.
 
-- **Speed and altitude measurements** extracted from video telemetry overlay
-- **Engine ignition status and patterns** across all Raptor engines
-- **Fuel level monitoring** for LOX (liquid oxygen) and CH4 (methane) in both stages
-- **Timestamps and synchronization** to T-0 events
-- **Acceleration and G-force calculations** for engineering analysis
-
-The tool processes video frames in parallel, cleans the extracted data, and generates comprehensive visualizations to help you understand the performance characteristics of each launch.
-
-## ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| **Telemetry Extraction** | OCR system optimized for SpaceX's Starship telemetry overlay |
-| **Engine Status Detection** | Real-time tracking of individual engine ignition states |
-| **Fuel Level Analysis** | Monitoring of LOX and CH4 tank levels in Superheavy booster and Starship |
-| **Performance Analysis** | Calculates derived metrics like acceleration and G-forces |
-| **Multi-launch Comparison** | Compare performance metrics across different Starship test flights |
-| **Interactive Visualizations** | Generate detailed graphs and plots with zoom capabilities, tooltips, and exportable formats (PNG, SVG, CSV) |
-| **Parallel Processing** | Efficiently processes video frames using multi-core architecture |
-| **User-friendly CLI** | Simple menu-driven interface with no programming knowledge required |
-
-## 🛠️ Installation
+## Quick start
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- NVIDIA GPU with CUDA support (recommended but optional)
-- 8GB+ RAM recommended for processing high-resolution videos
+- Python 3.8+ is sufficient; Python 3.11/3.12 are recommended for best compatibility.
+- FFmpeg installed and available on your `PATH` (used for frame extraction).
+- (Optional) NVIDIA GPU with CUDA support — recommended if you plan to use GPU-accelerated OCR or ML models for significantly better performance.
 
-### Quick Start
+### Install
 
-1. **Clone the repository**
+Run the included installer (recommended). The repository provides a small installer script `setup.py` that wraps the `setup` package and automates virtual environment creation, dependency installation (including CUDA-aware PyTorch), and verification.
 
-   ```bash
-   git clone https://github.com/sanitaravel/starship_analyzer.git
-   cd starship_analyzer
-   ```
+```pwsh
+# Interactive installer (recommended)
+python setup.py
 
-2. **Run the setup script**
+# Example: unattended installation and force CPU-only PyTorch
+python setup.py --unattended --force-cpu
 
-   ```bash
-   python setup.py
-   ```
-
-   This will:
-   - Create a Python virtual environment
-   - Detect CUDA availability for GPU acceleration
-   - Install the right PyTorch version for your system
-   - Set up all dependencies automatically
-
-3. **Activate the virtual environment**
-   - Windows: `venv\Scripts\activate`
-   - macOS/Linux: `source venv/bin/activate`
-
-### Manual Installation
-
-If you prefer to set up the environment manually:
-
-1. Create a virtual environment:
-
-   ```bash
-   python -m venv venv
-   ```
-
-2. Activate the virtual environment:
-   - Windows: `venv\Scripts\activate`
-   - macOS/Linux: `source venv/bin/activate`
-
-3. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Updating the Application
-
-To update Starship Analyzer to the latest version without recreating your environment:
-
-1. **Pull the latest code**
-
-   ```bash
-   git pull
-   ```
-
-2. **Run the update command**
-
-   ```bash
-   python setup.py --update
-   ```
-
-   This will:
-   - Keep your existing virtual environment
-   - Check your CUDA configuration
-   - Update all dependencies to their required versions
-   - Verify installations are working correctly
-
-3. **When to update**
-   - After pulling changes from the repository
-   - When new dependencies have been added
-   - If you're experiencing compatibility issues
-   - When new SpaceX webcast formats require updated analysis capabilities
-
-Additional update options:
-
-   ```bash
-   # Force CPU-only installation even if CUDA is available
-   python setup.py --update --force-cpu
-   
-   # Run update without user interaction
-   python setup.py --update --unattended
-   ```
-
-### Key Dependencies
-
-- **OpenCV**: For video processing and computer vision tasks
-- **EasyOCR**: For optical character recognition
-- **PyTorch**: Backend for OCR operations (GPU acceleration when available)
-- **Matplotlib/Plotly**: For visualization and data plotting
-- **NumPy/Pandas**: For data handling and analysis
-- **yt-dlp**: For downloading Starship webcasts
-
-## 📋 Usage Guide
-
-### Getting Started
-
-1. Place your Starship launch videos in the `flight_recordings` folder
-2. Run the application:
-
-   ```bash
-   python main.py
-   ```
-
-3. Follow the interactive menu to process videos and generate analyses
-
-### Workflow
-
-```text
-Flight Recording → Frame Processing → Data Extraction → Analysis → Visualization
+# To update an existing installation
+python setup.py --update
 ```
 
-1. **Input**: Add SpaceX webcast recordings to the `flight_recordings` directory
-2. **Processing**: Extract telemetry data through parallel frame processing
-3. **Analysis**: Clean data, calculate derived metrics, and detect patterns
-4. **Output**: Generate visualizations and comparison plots in the `results` directory
+You can also run the installer directly as a module (equivalent):
 
-### Logging System
-
-The application maintains detailed logs to help with troubleshooting:
-
-- Each session creates a timestamped log file in the `logs` directory
-- Log files follow the format `starship_analyzer_YYYYMMDD_HHMMSS.log`
-- Console output shows essential information while full details are saved to log files
-- System hardware and software details are logged at startup for troubleshooting
-- For debugging issues, check the latest log file in the `logs` directory
-
-### Debug Mode
-
-Debug mode provides enhanced logging and diagnostic information to help troubleshoot issues:
-
-- Enable/disable debug mode directly from the main menu using the "Toggle Debug Mode" option
-- When enabled, detailed diagnostic information is logged about:
-  - OCR processing and text extraction
-  - Engine detection with pixel values
-  - Memory usage and CUDA device information
-  - Detailed data processing steps and statistics
-- Use debug mode when:
-  - Troubleshooting extraction issues with specific frames
-  - Diagnosing performance problems or accuracy issues
-  - Developing new features or fixing bugs
-  - Analyzing the internal behavior of the application
-
-Debug mode logs are more verbose but provide valuable insights when resolving complex issues.
-
-### Available Commands
-
-The application's main menu provides several options:
-
-| Menu Option | Submenu | Description |
-|-------------|---------|-------------|
-| **Video Processing** | | Options for extracting data from videos |
-| | **Process random video frame** | Test extraction on a single frame to validate setup |
-| | **Process complete video** | Extract data from all frames in a recording |
-| **Data Visualization** | | Options for visualizing extracted data |
-| | **Visualize flight data** | Generate plots from processed launch data |
-| | **Visualize multiple launches data** | Compare metrics across different flights |
-| **Download Media** | | Options for downloading Starship launch videos |
-| | **Download from launch list** | Download videos from curated list of Starship launches |
-| | **Download from custom URL** | Download videos from custom YouTube or Twitter/X URLs |
-| **Toggle Debug Mode** | | Enable/disable detailed diagnostic information |
-| **Exit** | | Exit the application |
-
-## 🔍 How It Works
-
-Starship Analyzer uses a multi-stage pipeline:
-
-1. **Frame Extraction**: Video frames are extracted and queued for processing
-2. **OCR Processing**: Specialized regions of interest (ROIs) are analyzed to extract telemetry
-3. **Engine Detection**: Computer vision techniques identify active engines
-4. **Fuel Level Detection**: Analysis of propellant gauge indicators for LOX and CH4 tank levels
-5. **Data Cleaning**: Statistical methods remove outliers and noise
-6. **Analysis**: Calculates acceleration, G-forces, and performance metrics
-7. **Visualization**: Generates plots showing vehicle performance, engine status, and fuel consumption
-
-The processed data is available through an interactive visualization interface that lets you explore:
-
-- Time-synchronized telemetry readings
-- Engine activation patterns
-- Fuel consumption rates
-- Performance metrics across different flight phases
-- Comparative analysis between multiple launches
-
-## 📂 Project Structure
-
-```bash
-starship_analyzer/
-├── ocr/                      # Optical Character Recognition subsystem
-│   ├── engine_detection.py   # Engine state detection
-│   ├── extract_data.py       # Main data extraction logic
-│   ├── fuel_level_extraction.py # Fuel level detection
-│   └── ocr.py                # Text recognition from telemetry
-├── plot/                     # Data processing and visualization tools
-│   ├── data_processing.py    # Data cleaning and calculation
-│   ├── flight_plotting.py    # Single flight visualization
-│   ├── comparison_plotting.py # Multiple flight comparison
-│   └── interactive_viewer.py # Interactive plot viewer
-├── processing/               # Video and frame processing engine
-│   ├── frame_processing.py   # Single frame analysis
-│   └── video_processing.py   # Batch processing of videos
-├── ui/                       # User interface components
-│   ├── main_menu.py          # Main application menu
-│   ├── video_menu.py         # Video processing options
-│   └── visualization_menu.py # Visualization options
-├── utils/                    # Utility functions and helpers
-│   ├── constants.py          # Application constants
-│   ├── logger.py             # Logging configuration
-│   ├── terminal.py           # Terminal utilities
-│   └── validators.py         # Input validation
-├── setup/                    # Installation and setup modules
-│   ├── environment.py        # Environment setup
-│   ├── dependencies.py       # Dependency management
-│   └── utilities.py          # Setup utilities
-├── flight_recordings/        # Input directory for launch videos
-├── results/                  # Output directory for processed data
-├── logs/                     # Application log files
-├── .tmp/                     # Temporary files directory
-├── main.py                   # Application entry point
-├── setup.py                  # Installation script
-├── requirements.txt          # Project dependencies
-└── LICENSE                   # License information
+```pwsh
+python -c "import setup; setup.run_setup()"
 ```
 
-## 📊 Example Outputs
+If you prefer to manage the virtual environment and installation manually, follow these steps instead:
 
-The tool generates several types of visualizations:
+Create a virtual environment and install Python dependencies:
 
-- **Telemetry Plots**: Speed and altitude over time with smooth trend lines
-- **Performance Analysis**: Acceleration and G-force profiles with NASA threshold lines
-- **Engine Activity**: Timelines showing which engines are firing with color-coded indicators
-- **Fuel Consumption**: Tracking of LOX and CH4 levels in both vehicle stages over time
-- **Correlation Analysis**: Relationship between engine patterns and vehicle performance
-- **Launch Comparisons**: Side-by-side analysis of different Starship flights for trend analysis
-
-## 🚀 Performance Tips
-
-- Processing high-resolution videos requires significant computing resources
-- GPU acceleration dramatically improves OCR processing speed (5-10x faster)
-- Adjust batch sizes in the menu for optimal performance on your system:
-  - For systems with <16GB RAM: Use batch sizes of 5-10
-  - For systems with >16GB RAM: Batch sizes up to 20-30 are effective
-- Consider pre-processing large videos to trim them to relevant segments
-- The application automatically detects and uses CUDA if available
-- For large videos, increase sample rate (e.g., process every 5th frame) to speed up processing
-
-## 👥 Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-Please ensure your code follows the project's style guidelines and includes appropriate tests.
-
-## 🧪 Code Quality
-
-Starship Analyzer maintains high code quality standards through:
-
-- **Automated Testing**: Comprehensive test suite covering core functionality
-- **Continuous Integration**: GitHub Actions workflows run tests on multiple platforms
-- **Code Coverage**: Codecov tracks test coverage to identify untested code
-- **Static Analysis**: Linting tools ensure consistent code style
-
-[![Codecov Coverage](https://codecov.io/gh/sanitaravel/starship_analyzer/branch/master/graph/badge.svg)](https://codecov.io/gh/sanitaravel/starship_analyzer)
-
-View detailed coverage reports on our [Codecov dashboard](https://codecov.io/gh/sanitaravel/starship_analyzer).
-
-Running tests locally:
-
-```bash
-# Run tests
-pytest
-
-# Run tests with coverage report
-pytest --cov=. --cov-report=html
+```pwsh
+python -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-## 📄 License
+Available installer flags (supported by `setup.py` / `setup.run_setup`):
 
-This project is licensed under the MIT License with Attribution Requirement.
+- `--update` : Update dependencies in an existing virtual environment.
+- `--force-cpu` : Force CPU-only installations (skip CUDA/PyTorch GPU variant).
+- `--unattended` : Run without interactive prompts where possible.
+- `--recreate` : Recreate the virtual environment if it already exists.
+- `--keep` : Keep the existing virtual environment and skip recreation.
+- `--debug` : Show detailed installation output for troubleshooting.
 
-You may freely use and modify this software, provided you:
+Note: On systems where the installer tries to install NVIDIA drivers or CUDA, you may need elevated privileges (sudo on Linux or administrator on Windows). The installer will guide you and print links for manual driver/CUDA downloads when automatic installation isn't appropriate.
 
-- Include the original copyright notice
-- Provide attribution to the original author
-- Indicate if changes were made
+### Run an analysis
 
-See the [LICENSE](LICENSE) file for complete details.
+The repository exposes `main.py`, which coordinates processing: parsing recordings (frame extraction, OCR-based telemetry parsing and event extraction) and generating plots/analysis artifacts saved to `plot/` and `results/`.
 
-## 📚 Citation
-
-If you use this software in academic or research contexts, please cite it as:
-
-```text
-Koshcheev, A. (2025). Starship Analyzer: Telemetry extraction and analysis tool 
-for SpaceX Starship launches. GitHub. https://github.com/sanitaravel/starship_analyzer
+```pwsh
+# Interactive menu (no args)
+python main.py
 ```
 
-## 📧 Contact
+`main.py` also supports lightweight profiling to help diagnose performance hotspots:
 
-Alexander Koshcheev - [GitHub Profile](https://github.com/sanitaravel)
+- `--profile` / `-p` : enable cProfile and write stats to `profile.stats` (or provide a filename).
+- `--profile-print` : when profiling, print top functions by cumulative time after the run.
+- `--profile-top N` : number of top functions to print (default 50).
 
-Project Link: [https://github.com/sanitaravel/starship_analyzer](https://github.com/sanitaravel/starship_analyzer)
+See `python main.py --help` for the full set of options and menu-driven features.
 
-## 🛡️ Data Collection Notice
+## Configuration and ROIs
 
-**System Information**: At the start of each session, Starship Analyzer collects basic system information including:
+Region-of-interest (ROI) and flight-specific settings live in `configs/`. The file `configs/default_rois.json` provides a baseline. To analyze a recording with a specific ROI configuration, point the analysis to that JSON or copy/modify it for a flight.
 
-- Hardware details (CPU, RAM size, GPU specifications)
-- Platform information (OS version, architecture)
-- Python and critical library versions
-- CUDA availability and version
+Example ROI configuration (JSON) matching the project's schema:
 
-This information is stored **only in your local log files** and is used exclusively for:
+```json
+{
+  "version": 2,
+  "time_unit": "frames",
+  "rois": [
+    {
+      "id": "SS_SPEED",
+      "label": "Starship Speed",
+      "x": 1544,
+      "y": 970,
+      "w": 114,
+      "h": 37,
+      "start_time": 83301,
+      "end_time": 88329,
+      "match_to_role": "ss_speed"
+    },
+    {
+      "id": "TIME",
+      "label": "Time Display",
+      "x": 827,
+      "y": 968,
+      "w": 265,
+      "h": 44,
+      "start_time": 83301,
+      "end_time": 168659,
+      "match_to_role": "time"
+    }
+  ]
+}
+```
 
-- Troubleshooting technical issues
-- Optimizing performance for your hardware
-- Debugging version-specific problems
+### ROI JSON field reference
 
-The application does not transmit any data to external servers or share this information with third parties. All logs remain on your local system unless you explicitly share them when seeking technical support.
+Below are all fields observed in the `configs/` ROI files and their meanings. Use this as a quick reference when creating or editing ROI JSON files.
 
-You can inspect the collected information in the log files located in the `logs` directory.
+- `version` (integer)
+  - Schema version for the ROI file. Increment when the format changes. Examples: `1`, `2`.
+
+- `time_unit` (string)
+  - Unit used for `start_time` and `end_time`. Common values: `frames`, `seconds`.
+
+- `rois` (array of objects)
+  - List of ROI objects; each object describes a single region to process.
+
+Per-ROI object fields
+
+- `id` (string)
+  - Short unique identifier for the ROI (e.g., `SS_SPEED`, `TIME`). Used to reference the ROI in logs and outputs.
+
+- `label` (string)
+  - Human-friendly description of the ROI (e.g., `Starship Speed`). Used in UIs and reports.
+
+- `x` (integer)
+  - X coordinate (pixels) of the top-left corner of the ROI, relative to the frame's left edge.
+
+- `y` (integer)
+  - Y coordinate (pixels) of the top-left corner of the ROI, relative to the frame's top edge.
+
+- `w` (integer)
+  - Width (pixels) of the ROI rectangle.
+
+- `h` (integer)
+  - Height (pixels) of the ROI rectangle.
+
+- `start_time` (integer or null)
+  - When the ROI becomes active. Interpreted in the unit specified by `time_unit`. Use `null` if the ROI is active from the beginning.
+
+- `end_time` (integer or null)
+  - When the ROI stops being active. Interpreted in the unit specified by `time_unit`. Use `null` if the ROI remains active until the end of the recording.
+
+- `match_to_role` (string)
+  - Logical role name used by the analyzer to map OCR or detections to specific telemetry fields (for example `ss_speed`, `sh_altitude`, `time`).
+
+Notes and best practices
+
+- Coordinates and sizes are integer pixel values — double-check these values at the video resolution you are analyzing (e.g., 1920x1080 vs 1280x720).
+- Use `start_time`/`end_time` to avoid running OCR on regions that are not present for the whole recording (this speeds up processing).
+- Keep `id` values unique within a single file. You may reuse `match_to_role` values across ROIs if they map to the same telemetry field across different time ranges.
+- When converting `seconds` to `frames`, multiply seconds by the video's frames-per-second (FPS). The project does not assume a default FPS — supply `time_unit` and values consistent with your workflow.
+- `time_unit` indicates the unit used for `start_time`/`end_time` (e.g., `frames` or `seconds`).
+- Coordinates are in pixels (`x`, `y`, `w`, `h`) relative to the top-left of the frame.
+- `start_time` and `end_time` define when the ROI is active in the recording.
+- Save custom configs into the `configs/` directory and name them clearly (e.g., `flight_9_rois.json`).
+- The analyzer will read the selected JSON and apply OCR or detection routines to each ROI; check logs in `logs/` for ROI processing messages.
+
+## Contributing
+
+Contributions are welcome. Please open issues for bugs or feature requests. For code changes, fork the repo, create a feature branch, and open a pull request against `master`.
+
+## License
+
+See the `LICENSE` file in the repository root for license details.
+
+## Contact
+
+If you need help running the project locally, open an issue or contact the repository owner.
