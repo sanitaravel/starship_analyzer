@@ -252,6 +252,27 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
     # Preprocess the image to get ROIs mapping (roi_id -> image)
     rois_map = preprocess_image(image, display_rois, roi_manager=roi_manager, frame_idx=frame_idx)
 
+    # Determine which types of processing are configured via ROIs.
+    mgr = roi_manager
+    if mgr is None:
+        try:
+            mgr = get_default_manager()
+        except Exception:
+            mgr = None
+
+    active_roles = set()
+    if mgr is not None:
+        try:
+            for r in mgr.get_active_rois(frame_idx):
+                if getattr(r, "match_to_role", None):
+                    active_roles.add(r.match_to_role)
+        except Exception:
+            # Be conservative: if we fail to query manager, assume only time/speed/alt present
+            active_roles = set()
+
+    has_fuel_roi = any(("fuel" in (r or "").lower()) for r in active_roles)
+    has_engine_roi = any(("engine" in (r or "").lower()) for r in active_roles)
+
     # Helper to fetch ROI image by role using roi_manager mapping; return empty ROI when missing
     def _get_roi_image(role: str) -> Optional[np.ndarray]:
         mgr = roi_manager
@@ -329,58 +350,76 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
             starship_data["speed"] = sh_speed
         if not ss_altitude:
             starship_data["altitude"] = sh_altitude
-
-    # time_data was already extracted earlier and ensured to be present
     
     # Extract fuel levels
     if debug:
         logger.debug("Extracting fuel levels")
     
     try:
-        fuel_data = extract_fuel_levels(image, debug)
+        # Ensure fuel_data is always defined to avoid UnboundLocalError in debug logging
+        fuel_data = None
+        if has_fuel_roi:
+            fuel_data = extract_fuel_levels(image, debug)
+            # Add fuel level data to vehicle data
+            superheavy_data["fuel"] = fuel_data.get("superheavy", {"lox": {"fullness": 0}, "ch4": {"fullness": 0}})
+            starship_data["fuel"] = fuel_data.get("starship", {"lox": {"fullness": 0}, "ch4": {"fullness": 0}})
+        else:
+            if debug:
+                logger.debug("No fuel ROIs configured; skipping fuel extraction")
+            # Reuse same empty dict for both to reduce allocations
+            empty_fuel = {"lox": {"fullness": 0}, "ch4": {"fullness": 0}}
+            superheavy_data["fuel"] = empty_fuel
+            starship_data["fuel"] = empty_fuel
+            # Mirror structure so later debug logging can read from fuel_data if needed
+            fuel_data = {"superheavy": empty_fuel, "starship": empty_fuel}
         
-        # Add fuel level data to vehicle data
-        superheavy_data["fuel"] = fuel_data["superheavy"]
-        starship_data["fuel"] = fuel_data["starship"]
-        
-        if debug:
-            # Cache fuel values for logging
-            sh_lox = fuel_data["superheavy"]["lox"]["fullness"]
-            sh_ch4 = fuel_data["superheavy"]["ch4"]["fullness"]
-            ss_lox = fuel_data["starship"]["lox"]["fullness"]
-            ss_ch4 = fuel_data["starship"]["ch4"]["fullness"]
+        if debug and fuel_data:
+            # Cache fuel values for logging (use .get chains to be defensive)
+            sh_lox = fuel_data.get("superheavy", {}).get("lox", {}).get("fullness", 0)
+            sh_ch4 = fuel_data.get("superheavy", {}).get("ch4", {}).get("fullness", 0)
+            ss_lox = fuel_data.get("starship", {}).get("lox", {}).get("fullness", 0)
+            ss_ch4 = fuel_data.get("starship", {}).get("ch4", {}).get("fullness", 0)
             logger.debug(f"Fuel levels - SH: LOX {sh_lox:.1f}%, CH4 {sh_ch4:.1f}%, "
                         f"SS: LOX {ss_lox:.1f}%, CH4 {ss_ch4:.1f}%")
     except Exception as e:
         logger.error(f"Error extracting fuel levels: {str(e)}")
         if debug:
             logger.debug(traceback.format_exc())
-        # Reuse same empty dict for both to reduce allocations
+        # Reuse same empty dict for both to reduce allocations and ensure fuel_data exists
         empty_fuel = {"lox": {"fullness": 0}, "ch4": {"fullness": 0}}
         superheavy_data["fuel"] = empty_fuel
         starship_data["fuel"] = empty_fuel
+        fuel_data = {"superheavy": empty_fuel, "starship": empty_fuel}
     
     # Detect engine status
     if debug:
         logger.debug("Detecting engine status")
     
     try:
-        engine_data = detect_engine_status(image, debug)
+        # Ensure engine_data variable exists to avoid UnboundLocalError in debug logging
+        engine_data = None
+        if has_engine_roi:
+            engine_data = detect_engine_status(image, debug)
+            # Add engine data to vehicle data
+            superheavy_data["engines"] = engine_data.get("superheavy", {})
+            starship_data["engines"] = engine_data.get("starship", {})
+        else:
+            if debug:
+                logger.debug("No engine ROIs configured; skipping engine detection")
+            superheavy_data["engines"] = {}
+            starship_data["engines"] = {}
+            engine_data = {"superheavy": {}, "starship": {}}
         
-        # Add engine data to vehicle data
-        superheavy_data["engines"] = engine_data["superheavy"]
-        starship_data["engines"] = engine_data["starship"]
-        
-        if debug:
+        if debug and engine_data:
             # Store engine data references for more efficient processing
-            sh_engines = engine_data["superheavy"]
-            ss_engines = engine_data["starship"]
+            sh_engines = engine_data.get("superheavy", {})
+            ss_engines = engine_data.get("starship", {})
             
             # Calculate engine stats more efficiently
-            sh_active = sum(sum(1 for e in engines if e) for engines in sh_engines.values())
-            sh_total = sum(len(engines) for engines in sh_engines.values())
-            ss_active = sum(sum(1 for e in engines if e) for engines in ss_engines.values())
-            ss_total = sum(len(engines) for engines in ss_engines.values())
+            sh_active = sum(sum(1 for e in engines if e) for engines in sh_engines.values()) if sh_engines else 0
+            sh_total = sum(len(engines) for engines in sh_engines.values()) if sh_engines else 0
+            ss_active = sum(sum(1 for e in engines if e) for engines in ss_engines.values()) if ss_engines else 0
+            ss_total = sum(len(engines) for engines in ss_engines.values()) if ss_engines else 0
             
             logger.debug(f"Engine status - SH: {sh_active}/{sh_total} active, SS: {ss_active}/{ss_total} active")
     except Exception as e:
