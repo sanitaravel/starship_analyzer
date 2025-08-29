@@ -62,9 +62,25 @@ def display_image(image: np.ndarray, text: str) -> None:
         image (numpy.ndarray): The image to display.
         text (str): The text to display in the window title.
     """
-    cv2.imshow(text, image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    logger = get_logger(__name__)
+
+    # Defensive: if image is None, nothing to display
+    if image is None:
+        logger.debug("display_image called with None image; skipping display")
+        return
+
+    try:
+        # Attempt to use OpenCV GUI to display image. On headless systems
+        # this will raise an error from OpenCV; catch and log a warning and
+        # continue without raising so callers can remain headless-friendly.
+        cv2.imshow(text, image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    except cv2.error as e:
+        logger.warning("OpenCV GUI not available; skipping display: %s", e)
+    except Exception as e:
+        # Fallback for any other unexpected errors
+        logger.warning("Failed to display image: %s", e)
 
 def extract_launch_number(json_path: str) -> str:
     """
