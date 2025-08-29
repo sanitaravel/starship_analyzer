@@ -3,6 +3,7 @@ import easyocr
 import numpy as np
 import torch
 import os
+import gc
 import threading
 from typing import Dict, Tuple, Optional
 from utils import display_image
@@ -11,56 +12,71 @@ from utils.logger import get_logger
 # Initialize logger
 logger = get_logger(__name__)
 
-# Use thread-local storage to ensure each process has its own reader instance
-# This helps avoid sharing CUDA contexts across processes
-_thread_local = threading.local()
+# Process-global EasyOCR reader to avoid duplicated model loads on GPU.
+# One reader per process reduces GPU memory usage compared to per-thread readers.
+_reader = None
+_reader_lock = threading.Lock()
+_device_initialized = False
+_device_id: Optional[int] = None
 
-def get_reader():
+
+def _init_reader(gpu: bool) -> easyocr.Reader:
+    """Initialize and return the process-global EasyOCR reader.
+
+    If GPU initialization fails, this will fall back to a CPU reader and return it.
     """
-    Get or initialize the EasyOCR reader safely for multiprocessing.
-    
-    Returns:
-        easyocr.Reader: An initialized EasyOCR reader instance
-    """
-    if not hasattr(_thread_local, 'reader'):
-        # Get process ID for debugging
-        pid = os.getpid()
-        logger.info(f"Process {pid}: Initializing EasyOCR reader")
-        
-        # Check if CUDA is available
-        gpu_available = torch.cuda.is_available()
+    global _reader, _device_initialized, _device_id
+    pid = os.getpid()
+
+    with _reader_lock:
+        if _reader is not None:
+            return _reader
+
+        logger.info(f"Process {pid}: Initializing EasyOCR reader (gpu={gpu})")
+
+        gpu_available = gpu and torch.cuda.is_available()
         if gpu_available:
-            # Try to explicitly set the device to avoid conflicts
             try:
-                device_id = 0
+                device_env = os.environ.get("CUDA_DEVICE")
+                device_id = int(device_env) if device_env is not None else 0
                 logger.debug(f"Process {pid}: Attempting to set CUDA device to {device_id}")
                 torch.cuda.set_device(device_id)
-                device_name = torch.cuda.get_device_name(device_id)
-                total_memory = torch.cuda.get_device_properties(device_id).total_memory / (1024**3)
-                logger.debug(f"Process {pid}: Using GPU: {device_name} with {total_memory:.2f} GB total memory")
-                logger.debug(f"Process {pid}: CUDA version: {torch.version.cuda}")
+                _device_id = device_id
+                _device_initialized = True
+                try:
+                    device_name = torch.cuda.get_device_name(device_id)
+                    total_memory = torch.cuda.get_device_properties(device_id).total_memory / (1024**3)
+                    logger.debug(f"Process {pid}: Using GPU: {device_name} with {total_memory:.2f} GB total memory")
+                    logger.debug(f"Process {pid}: CUDA version: {torch.version.cuda}")
+                except Exception:
+                    pass
             except Exception as e:
                 logger.error(f"Process {pid}: Error setting CUDA device: {e}")
-                # Fall back to CPU if there's an issue with GPU
                 gpu_available = False
-                
-        # Initialize the reader
+
         try:
             logger.debug(f"Process {pid}: Starting EasyOCR initialization with GPU={gpu_available}")
-            _thread_local.reader = easyocr.Reader(['en'], gpu=gpu_available, verbose=False)
+            _reader = easyocr.Reader(['en'], gpu=gpu_available, verbose=False)
             logger.info(f"Process {pid}: EasyOCR initialized {'with GPU' if gpu_available else 'on CPU'}")
         except Exception as e:
             logger.error(f"Process {pid}: Failed to initialize EasyOCR with GPU, falling back to CPU: {e}")
-            # Fall back to CPU mode if GPU initialization fails
             try:
                 logger.debug(f"Process {pid}: Attempting fallback to CPU mode")
-                _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+                _reader = easyocr.Reader(['en'], gpu=False, verbose=False)
                 logger.info(f"Process {pid}: EasyOCR initialized on CPU (fallback)")
             except Exception as e2:
                 logger.critical(f"Process {pid}: Critical error initializing EasyOCR: {e2}")
                 raise
-    
-    return _thread_local.reader
+
+    return _reader
+
+
+def get_reader() -> easyocr.Reader:
+    """Return the process-global EasyOCR reader, initializing it on first use."""
+    global _reader
+    if _reader is None:
+        return _init_reader(gpu=True)
+    return _reader
 
 def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transformed: bool = False, debug: bool = False) -> Dict:
     """
@@ -112,13 +128,30 @@ def extract_values_from_roi(roi: np.ndarray, mode: str = "data", display_transfo
         except RuntimeError as e:
             # Handle CUDA out-of-memory errors
             if "CUDA out of memory" in str(e):
-                logger.warning(f"CUDA out of memory error in OCR. Falling back to CPU.")
+                logger.warning("CUDA out of memory error in OCR. Falling back to CPU.")
                 logger.debug(f"Memory error details: {str(e)}")
-                # Try again with CPU
-                torch.cuda.empty_cache()  # Clear CUDA memory
+
+                # Clean up existing GPU-backed reader and force a CPU-only reader.
+                global _reader
+                with _reader_lock:
+                    try:
+                        old_reader = _reader
+                        _reader = None
+                        if old_reader is not None:
+                            del old_reader
+                    except Exception:
+                        pass
+
+                # Force garbage collection and clear CUDA cache
+                gc.collect()
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
+
                 logger.debug("CUDA memory cleared, reinitializing reader on CPU")
-                _thread_local.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
-                results = _thread_local.reader.readtext(roi, detail=0, allowlist=allowlist)
+                ocr_reader = _init_reader(gpu=False)
+                results = ocr_reader.readtext(roi, detail=0, allowlist=allowlist)
                 text = ''.join(results) if results else ""
                 logger.debug(f"CPU fallback OCR results: {results}")
             else:
