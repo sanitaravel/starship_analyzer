@@ -391,37 +391,12 @@ def extract_data(image: np.ndarray, display_rois: bool = False, debug: bool = Fa
         starship_data["fuel"] = empty_fuel
         fuel_data = {"superheavy": empty_fuel, "starship": empty_fuel}
     
-    # Detect engine status
-    if debug:
-        logger.debug("Detecting engine status")
-    
+    # Detect engine status via centralized engine_detection.detect_engine_status
     try:
-        # Ensure engine_data variable exists to avoid UnboundLocalError in debug logging
-        engine_data = None
-        if has_engine_roi:
-            engine_data = detect_engine_status(image, debug)
-            # Add engine data to vehicle data
-            superheavy_data["engines"] = engine_data.get("superheavy", {})
-            starship_data["engines"] = engine_data.get("starship", {})
-        else:
-            if debug:
-                logger.debug("No engine ROIs configured; skipping engine detection")
-            superheavy_data["engines"] = {}
-            starship_data["engines"] = {}
-            engine_data = {"superheavy": {}, "starship": {}}
-        
-        if debug and engine_data:
-            # Store engine data references for more efficient processing
-            sh_engines = engine_data.get("superheavy", {})
-            ss_engines = engine_data.get("starship", {})
-            
-            # Calculate engine stats more efficiently
-            sh_active = sum(sum(1 for e in engines if e) for engines in sh_engines.values()) if sh_engines else 0
-            sh_total = sum(len(engines) for engines in sh_engines.values()) if sh_engines else 0
-            ss_active = sum(sum(1 for e in engines if e) for engines in ss_engines.values()) if ss_engines else 0
-            ss_total = sum(len(engines) for engines in ss_engines.values()) if ss_engines else 0
-            
-            logger.debug(f"Engine status - SH: {sh_active}/{sh_total} active, SS: {ss_active}/{ss_total} active")
+        engine_data = detect_engine_status(image, debug, roi_manager=roi_manager, frame_idx=frame_idx)
+        # Add engine data to vehicle data (may be empty dicts if no engine ROIs)
+        superheavy_data["engines"] = engine_data.get("superheavy", {})
+        starship_data["engines"] = engine_data.get("starship", {})
     except Exception as e:
         logger.error(f"Error detecting engine status: {str(e)}")
         if debug:

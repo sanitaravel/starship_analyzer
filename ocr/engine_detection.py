@@ -1,8 +1,9 @@
 import numpy as np
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 from numba import njit
 from utils.constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
 from utils.logger import get_logger
+from .roi_manager import get_default_manager, ROIManager
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -69,7 +70,7 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     return engine_status
 
 
-def detect_engine_status(image: np.ndarray, debug: bool = False) -> Dict:
+def detect_engine_status(image: np.ndarray, debug: bool = False, roi_manager: Optional[ROIManager] = None, frame_idx: Optional[int] = None) -> Dict:
     """
     Detect whether engines are turned on by checking pixel values at specific coordinates.
 
@@ -80,15 +81,67 @@ def detect_engine_status(image: np.ndarray, debug: bool = False) -> Dict:
     Returns:
         dict: A dictionary containing engine statuses for Superheavy and Starship.
     """
+    # Determine whether any engine ROIs are configured. If a ROI manager
+    # is provided (or can be loaded), prefer it for a conservative decision
+    # about whether engine detection should run. If no manager is available
+    # assume no engine ROIs.
     if debug:
         logger.debug(f"Starting engine detection on image of shape {image.shape}")
-    
+
+    mgr = roi_manager
+    if mgr is None:
+        try:
+            mgr = get_default_manager()
+        except Exception:
+            mgr = None
+
+    has_engine_roi = False
+    if mgr is not None:
+        try:
+            active = mgr.get_active_rois(frame_idx)
+            for r in active:
+                if getattr(r, "match_to_role", None) and "engine" in (r.match_to_role or "").lower():
+                    has_engine_roi = True
+                    break
+        except Exception:
+            has_engine_roi = False
+
+    # Attempt to get engine coordinate points from ROI manager if present.
+    # ROI entries should have a 'points' dictionary mirroring the structure
+    # used by the legacy constants. If not present, fall back to constants.
+    sh_points = None
+    ss_points = None
+    if mgr is not None and has_engine_roi:
+        try:
+            for r in mgr.get_active_rois(frame_idx):
+                role = getattr(r, "match_to_role", None)
+                logger.debug(f"Found ROI with role: {role}, points: {getattr(r, 'points', None)}")
+                if not role:
+                    continue
+                if role.lower() == "sh_engines" and getattr(r, "points", None):
+                    sh_points = r.points
+                if role.lower() == "ss_engines" and getattr(r, "points", None):
+                    ss_points = r.points
+        except Exception:
+            # If reading from manager fails, we'll fall back to constants below
+            sh_points = None
+            ss_points = None
+            
+    logger.debug(sh_points)
+
+    if sh_points is None:
+        sh_points = SUPERHEAVY_ENGINES
+        logger.warning("No Superheavy engine ROI found; falling back to default coordinates")
+    if ss_points is None:
+        ss_points = STARSHIP_ENGINES
+        logger.warning("No Starship engine ROI found; falling back to default coordinates")
+
     # Check Superheavy engines
-    superheavy_engines = check_engines(image, SUPERHEAVY_ENGINES, debug, "Superheavy")
-    
+    superheavy_engines = check_engines(image, sh_points, debug, "Superheavy")
+
     # Check Starship engines
-    starship_engines = check_engines(image, STARSHIP_ENGINES, debug, "Starship")
-    
+    starship_engines = check_engines(image, ss_points, debug, "Starship")
+
     # Calculate summary statistics for debugging
     if debug:
         sh_active = sum(sum(1 for e in engines if e) for engines in superheavy_engines.values())
@@ -96,8 +149,5 @@ def detect_engine_status(image: np.ndarray, debug: bool = False) -> Dict:
         ss_active = sum(sum(1 for e in engines if e) for engines in starship_engines.values())
         ss_total = sum(len(engines) for engines in starship_engines.values())
         logger.debug(f"Engine detection summary - Superheavy: {sh_active}/{sh_total} active, Starship: {ss_active}/{ss_total} active")
-    
-    return {
-        "superheavy": superheavy_engines,
-        "starship": starship_engines
-    }
+
+    return {"superheavy": superheavy_engines, "starship": starship_engines}

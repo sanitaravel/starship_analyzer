@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 class ROI:
     def __init__(self, data: Dict):
-        # expected keys: id,label,y,h,x,w,start_time,end_time,match_to_role
+        # expected keys: id,label,y,h,x,w,start_time,end_time,match_to_role,points
         self.id = data.get("id")
         self.label = data.get("label")
         self.y = int(data.get("y", 0))
@@ -20,6 +20,26 @@ class ROI:
         self.start_frame = None if data.get("start_time") is None else int(data.get("start_time"))
         self.end_frame = None if data.get("end_time") is None else int(data.get("end_time"))
         self.match_to_role = data.get("match_to_role")
+        # Optional pre-defined engine/point coordinates stored in the ROI config
+        pts = data.get("points")
+        if pts is None:
+            self.points = None
+        else:
+            # Normalize coordinates to lists of two ints for safety
+            normalized: Dict[str, List[List[int]]] = {}
+            try:
+                for section, coords in pts.items():
+                    normalized_coords: List[List[int]] = []
+                    for p in coords:
+                        # allow tuples/lists and coerce values to ints
+                        if not (isinstance(p, (list, tuple)) and len(p) >= 2):
+                            continue
+                        normalized_coords.append([int(p[0]), int(p[1])])
+                    normalized[section] = normalized_coords
+            except Exception:
+                # If the structure is unexpected, keep raw value to allow downstream handling
+                normalized = pts
+            self.points = normalized
 
     def is_active(self, frame_idx: Optional[int]) -> bool:
         # If frame_idx is None, treat ROI as active
@@ -42,6 +62,7 @@ class ROI:
             "start_frame": self.start_frame,
             "end_frame": self.end_frame,
             "match_to_role": self.match_to_role,
+            "points": self.points,
         }
 
 
