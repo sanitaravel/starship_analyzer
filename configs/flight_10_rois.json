@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "time_unit": "frames",
   "rois": [
     {
@@ -21,7 +21,7 @@
       "x": 1707,
       "w": 114,
       "start_time": 89908,
-      "end_time": 94729,
+      "end_time": 94727,
       "match_to_role": "sh_altitude"
     },
     {
@@ -32,18 +32,29 @@
       "x": 1544,
       "w": 114,
       "start_time": 89908,
-      "end_time": 102353,
+      "end_time": 102351,
       "match_to_role": "ss_speed"
+    },
+    {
+      "id": "SS_ALTITUDE",
+      "label": "Starship Altitude",
+      "y": 970,
+      "h": 37,
+      "x": 1707,
+      "w": 114,
+      "start_time": 89908,
+      "end_time": 94727,
+      "match_to_role": "ss_altitude"
     },
     {
       "id": "SH_SPEED",
       "label": "Superheavy Speed",
       "y": 970,
       "h": 37,
-      "x": 96,
+      "x": 98,
       "w": 114,
       "start_time": 96854,
-      "end_time": 101143,
+      "end_time": 101142,
       "match_to_role": "sh_speed"
     },
     {
@@ -51,10 +62,10 @@
       "label": "Superheavy Altitude",
       "y": 970,
       "h": 37,
-      "x": 263,
+      "x": 262,
       "w": 114,
-      "start_time": 96854,
-      "end_time": null,
+      "start_time": 96855,
+      "end_time": 102349,
       "match_to_role": "sh_altitude"
     },
     {
@@ -62,9 +73,9 @@
       "label": "Starship Speed",
       "y": 970,
       "h": 37,
-      "x": 96,
+      "x": 98,
       "w": 114,
-      "start_time": 102381,
+      "start_time": 102379,
       "end_time": 210309,
       "match_to_role": "ss_speed"
     },
@@ -73,9 +84,9 @@
       "label": "Starship Altitude",
       "y": 970,
       "h": 37,
-      "x": 263,
+      "x": 262,
       "w": 114,
-      "start_time": 102381,
+      "start_time": 102379,
       "end_time": 210309,
       "match_to_role": "ss_altitude"
     },
@@ -86,8 +97,8 @@
       "h": 0,
       "x": 0,
       "w": 0,
-      "start_time": null,
-      "end_time": null,
+      "start_time": 89908,
+      "end_time": 96816,
       "match_to_role": "sh_engines",
       "points": {
         "central_stack": [
@@ -194,8 +205,16 @@
       "end_time": 106439,
       "match_to_role": "ss_engines",
       "points": {
-        "rearth": [[1764,981],[1756,995],[1773,995]],
-        "rvac": [[1738,974],[1792,974],[1764,1021]]
+        "rearth": [
+          [1764, 981],
+          [1756, 995],
+          [1773, 995]
+        ],
+        "rvac": [
+          [1738, 974],
+          [1792, 974],
+          [1764, 1021]
+        ]
       }
     },
     {
@@ -209,8 +228,16 @@
       "end_time": 158615,
       "match_to_role": "ss_engines",
       "points": {
-        "rearth": [[1764,981],[1756,995],[1773,995]],
-        "rvac": [[1738,974],[1792,974],[1764,1021]]
+        "rearth": [
+          [1764, 981],
+          [1756, 995],
+          [1773, 995]
+        ],
+        "rvac": [
+          [1738, 974],
+          [1792, 974],
+          [1764, 1021]
+        ]
       }
     },
     {
@@ -224,8 +251,16 @@
       "end_time": 210314,
       "match_to_role": "ss_engines",
       "points": {
-        "rearth": [[1764,981],[1756,995],[1773,995]],
-        "rvac": [[1738,974],[1792,974],[1764,1021]]
+        "rearth": [
+          [1764, 981],
+          [1756, 995],
+          [1773, 995]
+        ],
+        "rvac": [
+          [1738, 974],
+          [1792, 974],
+          [1764, 1021]
+        ]
       }
     },
     {

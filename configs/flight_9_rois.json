@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "time_unit": "frames",
   "rois": [
     {
@@ -73,7 +73,7 @@
       "label": "Starship Altitude",
       "y": 970,
       "h": 37,
-      "x": 1707,
+      "x": 264,
       "w": 114,
       "start_time": 96040,
       "end_time": 139471,
@@ -84,8 +84,8 @@
       "label": "Starship Speed",
       "y": 970,
       "h": 37,
-      "x": 263,
-      "w": 114,
+      "x": 604,
+      "w": 115,
       "start_time": 139551,
       "end_time": 168469,
       "match_to_role": "ss_speed"
@@ -96,7 +96,7 @@
       "y": 969,
       "h": 37,
       "x": 1201,
-      "w": 114,
+      "w": 115,
       "start_time": 139551,
       "end_time": 168469,
       "match_to_role": "ss_altitude"
