@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Dict, List, Union, Optional
 from numba import njit
-from utils.constants import SUPERHEAVY_ENGINES, STARSHIP_ENGINES, WHITE_THRESHOLD
+from utils.constants import WHITE_THRESHOLD
 from utils.logger import get_logger
 from .roi_manager import get_default_manager, ROIManager
 
@@ -51,6 +51,11 @@ def check_engines(image: np.ndarray, engine_coords: Dict, debug: bool, engine_ty
     # Initialize results dictionary directly
     engine_status = {}
     
+    if engine_coords is None:
+        if debug:   
+            logger.debug(f"No {engine_type} engine coordinates found.")
+        return engine_status
+
     if debug:
         logger.debug(f"Checking {engine_type} engines with threshold: {WHITE_THRESHOLD}")
         logger.debug(f"Image shape: {image.shape}, checking {sum(len(coords) for coords in engine_coords.values())} engine points")
@@ -126,15 +131,6 @@ def detect_engine_status(image: np.ndarray, debug: bool = False, roi_manager: Op
             # If reading from manager fails, we'll fall back to constants below
             sh_points = None
             ss_points = None
-            
-    logger.debug(sh_points)
-
-    if sh_points is None:
-        sh_points = SUPERHEAVY_ENGINES
-        logger.warning("No Superheavy engine ROI found; falling back to default coordinates")
-    if ss_points is None:
-        ss_points = STARSHIP_ENGINES
-        logger.warning("No Starship engine ROI found; falling back to default coordinates")
 
     # Check Superheavy engines
     superheavy_engines = check_engines(image, sh_points, debug, "Superheavy")

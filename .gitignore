@@ -51,6 +51,7 @@ coverage.xml
 .pytest_cache/
 cover/
 *.test_script.py
+test_script.py
 
 # Translations
 *.mo
